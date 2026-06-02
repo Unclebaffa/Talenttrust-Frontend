@@ -25,8 +25,9 @@ export default function ReputationProfile({
   const showPartial = hasReputation && history.length === 0;
 
   return (
-    <section className="w-full max-w-5xl mx-auto space-y-8 px-4 py-10 sm:px-6 lg:px-8">
+    <section className="w-full max-w-5xl mx-auto space-y-8 px-4 py-10 sm:px-6 lg:px-8" aria-labelledby="profile-heading">
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <h2 className="sr-only" id="profile-heading">Reputation profile for {name}</h2>
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-900 text-2xl font-semibold text-white">
@@ -45,14 +46,24 @@ export default function ReputationProfile({
 
         <div className="mt-8 grid gap-4 sm:grid-cols-3">
           <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-            <p className="text-sm font-medium text-slate-500">Reputation score</p>
-            <p className="mt-3 text-3xl font-semibold text-slate-950">
-              {hasReputation ? score : 'No reputation yet'}
+            <p className="text-sm font-medium text-slate-500" id="reputation-score-label">Reputation score</p>
+            <p className="mt-3 text-3xl font-semibold text-slate-950" aria-labelledby="reputation-score-label">
+              {hasReputation ? (
+                <>
+                  <span className="sr-only">Reputation score </span>{score}<span className="sr-only"> out of 5</span>
+                </>
+              ) : 'No reputation yet'}
             </p>
           </div>
           <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-            <p className="text-sm font-medium text-slate-500">Level</p>
-            <p className="mt-3 text-xl font-semibold text-slate-950">{hasReputation ? level : 'Pending'}</p>
+            <p className="text-sm font-medium text-slate-500" id="reputation-level-label">Level</p>
+            <p className="mt-3 text-xl font-semibold text-slate-950" aria-labelledby="reputation-level-label">
+              {hasReputation ? (
+                <>
+                  <span className="sr-only">Level </span>{level}
+                </>
+              ) : 'Pending'}
+            </p>
           </div>
           <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
             <p className="text-sm font-medium text-slate-500">Explanation</p>
