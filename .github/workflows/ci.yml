@@ -29,3 +29,23 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      # Fail the build on high or critical advisories.
+      # Re-run once on transient registry errors (exit code 2 = connectivity).
+      # To waive an unavoidable advisory add its ID to .npmrc:
+      #   audit-level=high
+      # or use: npm audit --audit-level=high --ignore <advisory-id> (npm ≥ 10)
+      # Document the waiver reason in a comment here and in the PR description.
+      - name: Dependency audit
+        run: |
+          npm audit --audit-level=high --production || {
+            EXIT=$?
+            # exit 2 = network/registry error, not a vulnerability finding
+            if [ $EXIT -eq 2 ]; then
+              echo "::warning::npm audit could not reach the registry; retrying..."
+              sleep 10
+              npm audit --audit-level=high --production
+            else
+              exit $EXIT
+            fi
+          }

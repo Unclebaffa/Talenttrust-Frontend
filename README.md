@@ -78,8 +78,29 @@ GitHub Actions runs on push and pull requests to `main`:
 - Lint (`npm run lint`)
 - Build (`npm run build`)
 - Tests (`npm test`)
+- Dependency audit (`npm audit --audit-level=high --production`)
 
 Ensure these pass locally before pushing.
+
+### Security audits
+
+The pipeline runs `npm audit --audit-level=high --production` after tests. Any **high** or **critical** advisory blocks the merge.
+
+**Triage a finding**
+
+1. Run `npm audit` locally to read the advisory details and affected package.
+2. Check whether a patched version exists: `npm audit fix` (add `--force` only if you accept semver-major bumps and have reviewed the changelog).
+3. If no fix is available and the advisory is a false positive or cannot be exploited in this context, document the reason and add the advisory ID to a `.nsprc` / `audit-resolve.json` file (npm ≥ 10: `npm audit --ignore <id>`).
+
+**Waiving an advisory in CI**
+
+Add the `--ignore <advisory-id>` flag to the audit step in `.github/workflows/ci.yml` and leave a comment explaining the waiver, the expected fix date, and a link to the advisory. Example:
+
+```yaml
+# Advisory 1234567 – lodash prototype pollution, not reachable in production
+# Revisit when lodash@5 is released (tracked in #123).
+run: npm audit --audit-level=high --production --ignore 1234567
+```
 
 ## License
 
