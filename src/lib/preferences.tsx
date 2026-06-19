@@ -84,6 +84,11 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     setPreferences(prev => ({ ...prev, [key]: value }));
   };
 
+  /**
+   * Format monetary values using the active amount preference.
+   * USD keeps the caller-provided currency, NGN forces Nigerian Naira,
+   * and compact keeps the caller-provided currency with compact notation.
+   */
   const formatAmount = (amount: number, currency: string = 'USD') => {
     const { amountFormat } = preferences;
     

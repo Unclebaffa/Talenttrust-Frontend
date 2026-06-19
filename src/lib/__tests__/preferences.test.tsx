@@ -86,6 +86,16 @@ describe('formatAmount – usd (default)', () => {
     const { result } = renderHook(() => usePreferences(), { wrapper });
     expect(result.current.formatAmount(50)).toBe('$50.00');
   });
+
+  it('respects a custom currency for the default format', () => {
+    const { result } = renderHook(() => usePreferences(), { wrapper });
+    const expected = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'EUR',
+    }).format(1250);
+
+    expect(result.current.formatAmount(1250, 'EUR')).toBe(expected);
+  });
 });
 
 describe('formatAmount – ngn', () => {
@@ -129,6 +139,18 @@ describe('formatAmount – compact', () => {
     const { result } = renderHook(() => usePreferences(), { wrapper });
     act(() => { result.current.updatePreference('amountFormat', 'compact'); });
     expect(result.current.formatAmount(0, 'USD')).toMatch(/\$0/);
+  });
+
+  it('keeps a custom currency when compact notation is enabled', () => {
+    const { result } = renderHook(() => usePreferences(), { wrapper });
+    act(() => { result.current.updatePreference('amountFormat', 'compact'); });
+    const expected = new Intl.NumberFormat('en-US', {
+      notation: 'compact',
+      style: 'currency',
+      currency: 'EUR',
+    }).format(1_500);
+
+    expect(result.current.formatAmount(1_500, 'EUR')).toBe(expected);
   });
 });
 
@@ -188,5 +210,17 @@ describe('usePreferences outside provider', () => {
     const { result } = renderHook(() => usePreferences());
     expect(result.current.preferences.theme).toBe('system');
     expect(result.current.formatAmount(100, 'USD')).toBe('$100.00');
+  });
+
+  it('provides a no-op updatePreference fallback and honors custom currency formatting', () => {
+    const { result } = renderHook(() => usePreferences());
+    const expected = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'EUR',
+    }).format(100);
+
+    expect(() => result.current.updatePreference('theme', 'dark')).not.toThrow();
+    expect(result.current.preferences.theme).toBe('system');
+    expect(result.current.formatAmount(100, 'EUR')).toBe(expected);
   });
 });

@@ -90,8 +90,9 @@ Coverage targets (≥ 95%):
 | `formatAmount` – USD | zero, fraction, large, negative, default currency |
 | `formatAmount` – NGN | typical, zero, large |
 | `formatAmount` – compact | thousands (`K`), millions (`M`), zero |
+| Custom currency handling | default and compact formats preserve caller-provided currency |
 | Re-render consumer | `consumer component re-renders with updated format` |
-| Outside provider | `returns default fallback without throwing` |
+| Outside provider | default fallback formatting and no-op `updatePreference` |
 
 Run tests:
 
