@@ -2,32 +2,26 @@
 
 import { useState } from 'react';
 import { ToastDemo } from '@/components/toast/toast-demo';
+import { FormField } from '@/components/FormField';
+import { ErrorSummary } from '@/components/ErrorSummary';
+import { useToast } from '@/components/toast/toast-provider';
+import { validateLogin } from '@/lib/validateLogin';
 
 export default function Home() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ fieldId: string; message: string }[]>([]);
+  const { showSuccess } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const newErrors = [];
-
-    if (!email) {
-      newErrors.push({ fieldId: 'email', message: 'Email is required' });
-    } else if (!email.includes('@')) {
-      newErrors.push({ fieldId: 'email', message: 'Email must be valid' });
-    }
-
-    if (!password) {
-      newErrors.push({ fieldId: 'password', message: 'Password is required' });
-    } else if (password.length < 8) {
-      newErrors.push({ fieldId: 'password', message: 'Password must be at least 8 characters' });
-    }
-
+    const newErrors = validateLogin(email, password);
     setErrors(newErrors);
 
     if (newErrors.length === 0) {
-      alert('Form submitted successfully!');
+      showSuccess({
+        title: 'Form submitted successfully!',
+      });
     }
   };
 
@@ -45,8 +39,53 @@ export default function Home() {
         <p className="mt-4 max-w-lg text-center text-sm text-slate-500 sm:text-base">
           Accessible toast feedback now supports transient success and error states, including screen reader announcements for critical wallet and payout events.
         </p>
+
+        <form onSubmit={handleSubmit} className="mt-8 w-full max-w-md text-left" noValidate>
+          <ErrorSummary errors={errors} />
+
+          <div className="space-y-4">
+            <FormField
+              label="Email"
+              id="email"
+              error={getError('email')}
+              required
+            >
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+                placeholder="you@example.com"
+              />
+            </FormField>
+
+            <FormField
+              label="Password"
+              id="password"
+              error={getError('password')}
+              required
+            >
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+                placeholder="••••••••"
+              />
+            </FormField>
+          </div>
+
+          <button
+            type="submit"
+            className="mt-6 w-full rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400 shadow-md"
+          >
+            Sign In
+          </button>
+        </form>
+
         <ToastDemo />
       </div>
     </main>
   );
 }
+
