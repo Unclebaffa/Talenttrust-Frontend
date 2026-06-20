@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { ToastProvider, useToast } from './toast-provider';
 
 function ToastHarness() {
@@ -98,6 +99,143 @@ describe('ToastProvider', () => {
     act(() => {
       jest.advanceTimersByTime(2000);
     });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+  });
+
+  it('generates unique ids for rapid toast creation', () => {
+    const ids: string[] = [];
+
+    function RapidToastHarness() {
+      const { showSuccess } = useToast();
+
+      return (
+        <div>
+          <button
+            onClick={() => {
+              const id = showSuccess({ title: 'Toast 1' });
+              ids.push(id);
+            }}
+            type="button"
+          >
+            Create toast 1
+          </button>
+          <button
+            onClick={() => {
+              const id = showSuccess({ title: 'Toast 2' });
+              ids.push(id);
+            }}
+            type="button"
+          >
+            Create toast 2
+          </button>
+          <button
+            onClick={() => {
+              const id = showSuccess({ title: 'Toast 3' });
+              ids.push(id);
+            }}
+            type="button"
+          >
+            Create toast 3
+          </button>
+        </div>
+      );
+    }
+
+    render(
+      <ToastProvider>
+        <RapidToastHarness />
+      </ToastProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /create toast 1/i }));
+    fireEvent.click(screen.getByRole('button', { name: /create toast 2/i }));
+    fireEvent.click(screen.getByRole('button', { name: /create toast 3/i }));
+
+    const uniqueIds = new Set(ids);
+    expect(ids.length).toBe(3);
+    expect(uniqueIds.size).toBe(3);
+    expect(ids.every((id) => id.startsWith('toast-'))).toBe(true);
+  });
+
+  it('does not create duplicate toasts under StrictMode double invocation', () => {
+    const ids: string[] = [];
+
+    function StrictModeHarness() {
+      const { showSuccess } = useToast();
+
+      return (
+        <div>
+          <button
+            onClick={() => {
+              const id = showSuccess({ title: 'StrictMode toast' });
+              ids.push(id);
+            }}
+            type="button"
+          >
+            Create toast
+          </button>
+        </div>
+      );
+    }
+
+    render(
+      <StrictMode>
+        <ToastProvider>
+          <StrictModeHarness />
+        </ToastProvider>
+      </StrictMode>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /create toast/i }));
+
+    const uniqueIds = new Set(ids);
+    expect(ids.length).toBe(1);
+    expect(uniqueIds.size).toBe(1);
+  });
+
+  it('dismisses toast by returned id', async () => {
+    let returnedId: string | null = null;
+
+    function DismissByIdHarness() {
+      const { showSuccess, dismissToast } = useToast();
+
+      return (
+        <div>
+          <button
+            onClick={() => {
+              returnedId = showSuccess({ title: 'Dismissible toast' });
+            }}
+            type="button"
+          >
+            Create toast
+          </button>
+          <button
+            onClick={() => {
+              if (returnedId) {
+                dismissToast(returnedId);
+              }
+            }}
+            type="button"
+          >
+            Dismiss by id
+          </button>
+        </div>
+      );
+    }
+
+    render(
+      <ToastProvider>
+        <DismissByIdHarness />
+      </ToastProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /create toast/i }));
+    expect(screen.getByRole('status')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /dismiss by id/i }));
 
     await waitFor(() => {
       expect(screen.queryByRole('status')).not.toBeInTheDocument();

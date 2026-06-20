@@ -35,6 +35,21 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 
 const DEFAULT_DURATION = 5000;
 
+/**
+ * Generates a unique toast ID without mutating refs during render.
+ * Uses crypto.randomUUID() when available, with a timestamp-based fallback.
+ * This ensures collision-free IDs even under React StrictMode double-invocation.
+ *
+ * @returns A unique string identifier for a toast
+ */
+function generateToastId(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return `toast-${crypto.randomUUID()}`;
+  }
+  // Fallback for environments without crypto.randomUUID support
+  return `toast-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+}
+
 function getToastStyles(variant: ToastVariant) {
   if (variant === 'success') {
     return {
@@ -123,7 +138,6 @@ function ToastAnnouncer({ toasts }: { toasts: ToastRecord[] }) {
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastRecord[]>([]);
-  const nextIdRef = useRef(0);
   const timerIdsRef = useRef<Record<string, number>>({});
 
   const dismissToast = useCallback((id: string) => {
@@ -132,7 +146,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const createToast = useCallback(
     (variant: ToastVariant, toast: ToastInput) => {
-      const id = `toast-${nextIdRef.current += 1}`;
+      const id = generateToastId();
       const duration = toast.duration ?? DEFAULT_DURATION;
 
       setToasts((currentToasts) => [
