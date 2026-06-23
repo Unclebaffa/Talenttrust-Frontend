@@ -1,7 +1,8 @@
 
 > talenttrust-frontend@0.1.0 test
-> jest
+> jest --testPathPattern=" milestones\
 
+  Invalid testPattern "|milestones\ supplied. Running all tests instead.
 TypeError: Cannot read properties of undefined (reading 'onlyChanged')
     at _default (C:\Users\ADMIN\Desktop\mide-drips\Talenttrust-Frontend\node_modules\@jest\core\build\getChangedFilesPromise.js:49:20)
     at _run (C:\Users\ADMIN\Desktop\mide-drips\Talenttrust-Frontend\node_modules\@jest\core\build\cli\index.js:234:67)

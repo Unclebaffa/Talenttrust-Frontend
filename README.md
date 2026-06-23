@@ -82,6 +82,19 @@ The homepage contains an accessible, fully validated sign-in form:
 2. Install deps, run tests and build: `npm install && npm test && npm run build`.
 3. Open a pull request. CI runs lint, build, and tests on push/PR to `main`.
 
+## Features
+
+### Milestones
+
+The `/milestones` route renders a typed `Milestone[]` list with a status filter:
+
+- **Status filter** — an accessible `radiogroup` (`fieldset` + `legend`) lets users narrow results by *All*, *Pending*, *Completed*, *Paid*, or *Disputed*.
+- **Empty state** — when no items match the active filter, a contextual `EmptyState` is shown with a prompt to add a milestone.
+- **Accessible result announcement** — an `aria-live="polite"` region announces the filtered count (e.g. "Showing 2 pending milestones") to assistive-technology users.
+- **Currency formatting** — payouts are formatted via `formatAmount` from `src/lib/preferences.tsx`, respecting the user's chosen locale and currency preference.
+
+---
+
 ## CI/CD
 
 GitHub Actions runs on push and pull requests to `main`:
