@@ -64,6 +64,18 @@ export function ReleaseButton() {
 }
 ```
 
+## Authentication form validation and accessibility
+
+The homepage contains an accessible, fully validated sign-in form:
+
+- **Validation logic**: Form validation is extracted to a pure, isolated helper (`src/lib/validateLogin.ts`) that enforces required checks and format policies (email structure, minimum length of 8 for password).
+- **Error Summary**: If validation fails, an `ErrorSummary` component is rendered at the top of the form. It uses `role="alert"` and automatically gains focus via standard DOM ref to announce form errors immediately to screen reader users. The items in the list act as anchor links to directly jump focus to the respective input field.
+- **Form Fields & Inputs**: Individual fields are wrapped in `FormField` to handle accessibility connections. It automatically assigns:
+  - An associative `<label>` linked by `id`.
+  - `aria-invalid="true"` to denote inputs that contain errors.
+  - `aria-describedby` pointing to the helper text and error message paragraph elements so screen readers read the context when targeting the inputs.
+- **Success notification**: Upon valid submission, the `useToast` hook triggers a success notification instead of standard browser alerts.
+
 ## Contributing
 
 1. Fork the repo and create a branch from `main`.
