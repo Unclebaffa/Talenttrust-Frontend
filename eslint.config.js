@@ -5,6 +5,7 @@ const tsParser = require('@typescript-eslint/parser');
 const tsPlugin = require('@typescript-eslint/eslint-plugin');
 
 module.exports = [
+  // Ignore stray files that should never be linted
   {
     ignores: ['test_check.js', '.next/**', 'node_modules/**', 'src/declarations.d.ts'],
   },
