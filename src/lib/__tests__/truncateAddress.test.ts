@@ -13,4 +13,8 @@ describe('truncateAddress', () => {
   it('handles empty or missing values safely', () => {
     expect(truncateAddress('')).toBe('');
   });
+
+  it('preserves malformed values instead of truncating them as if they were Stellar addresses', () => {
+    expect(truncateAddress('not-a-valid-stellar-address')).toBe('not-a-valid-stellar-address');
+  });
 });
