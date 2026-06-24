@@ -35,4 +35,4 @@ export function Header() {
 - `@/lib/truncateAddress`
 
 ## Testing
-Tested with Jest and React Testing Library in `src/components/__tests__/WalletConnectButton.test.tsx`. Covers all UI states and interactions (click, copy, etc.).
+Tested with Jest and React Testing Library in `src/components/__tests__/WalletConnectButton.test.tsx`. Covers all UI states and interactions (click, copy, etc.), distinctive branches (connected | disconnected | error) and a11y.
