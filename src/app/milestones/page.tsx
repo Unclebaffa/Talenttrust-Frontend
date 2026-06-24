@@ -25,13 +25,15 @@ const MilestonesPage: React.FC = () => {
         />
       ) : (
         <>
-          <MilestoneFilter
+          {/* TODO: Implement MilestoneFilter component */}
+          {/* <MilestoneFilter
             selected={statusFilter}
             onChange={setStatusFilter}
             resultCount={filtered.length}
-          />
+          /> */}
 
-          {filtered.length === 0 ? (
+          {/* TODO: Implement filtered milestones logic */}
+          {/* {filtered.length === 0 ? (
             <EmptyState
               illustration="milestones"
               title="No milestones match this filter"
@@ -41,7 +43,7 @@ const MilestonesPage: React.FC = () => {
             />
           ) : (
             <MilestonesList milestones={filtered} />
-          )}
+          )} */}
         </>
       )}
     </main>

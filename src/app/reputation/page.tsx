@@ -15,7 +15,13 @@ const ReputationPage: React.FC = () => {
           description="Your reputation will be built as you complete contracts and receive feedback from clients. Start by creating and fulfilling your first contract."
         />
       ) : (
-        <ReputationProfile {...profileProps} />
+        // TODO: Implement ReputationProfile component
+        // <ReputationProfile {...profileProps} />
+        <EmptyState
+          illustration="reputation"
+          title="Reputation coming soon"
+          description="Reputation profile display will be implemented here."
+        />
       )}
     </main>
   );
