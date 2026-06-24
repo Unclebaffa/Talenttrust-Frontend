@@ -150,6 +150,39 @@ GitHub Actions runs on push and pull requests to `main`:
 
 Ensure these pass locally before pushing.
 
+### Dependency updates
+
+Dependency management uses two complementary layers that work in tandem:
+
+| Layer | Mechanism | Nature |
+|-------|-----------|--------|
+| **Proactive** | Dependabot (`.github/dependabot.yml`) | Opens weekly PRs to keep packages and action pins current |
+| **Reactive** | `npm audit` step in `ci.yml` | Blocks any PR — including Dependabot's — that introduces a new high/critical advisory |
+
+Because every Dependabot PR must pass the full CI pipeline (lint → build → test → audit) before it can be merged, the two layers reinforce each other: Dependabot brings updates in, and the audit gate ensures none of them silently introduce a vulnerability.
+
+**Reviewing grouped minor/patch PRs**
+
+Dependabot batches all minor and patch npm updates into a single weekly PR labelled `dependencies`. When reviewing:
+
+1. Check the CI status — all green means lint, build, tests, and the audit gate passed.
+2. Scan the diff in `package-lock.json` for any unexpected indirect dependency changes.
+3. If everything looks clean, approve and merge. No manual testing is normally required for grouped minor/patch updates.
+
+**Reviewing major version PRs**
+
+Each major npm bump arrives as its own PR so breaking changes can be assessed individually:
+
+1. Read the package's changelog or migration guide for the version jump.
+2. Run `npm install` locally and execute `npm test && npm run build` to catch any compile-time or runtime breakage.
+3. Update any affected code, then approve the PR once CI is green.
+
+**GitHub Actions pin updates**
+
+Dependabot also opens separate weekly PRs to keep `actions/checkout`, `actions/setup-node`, and similar pins current. These are low-risk and can generally be merged as long as CI passes. Confirm the pinned SHA in the updated workflow still points to a tagged release, not an arbitrary commit.
+
+> Auto-merge is **not** enabled. Every Dependabot PR requires a passing CI run and human approval before it lands on `main`.
+
 ### Security audits
 
 The pipeline runs `npm audit --audit-level=high --production` after tests. Any **high** or **critical** advisory blocks the merge.
