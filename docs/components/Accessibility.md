@@ -357,9 +357,34 @@ AA outright if either value drifted even slightly in a future change.
 `assertNoA11yViolations` from `src/test-utils/a11y.tsx` is called for all
 four distinct DOM states:
 
-- **Full history** (score + events) — primary axe audit required by issue #135
-- **No reputation** (no score)
-- **Partial reputation** (score, empty history)
-- **Null score**
-
 All states pass axe-core with zero violations.
+
+---
+
+## Keyboard-Accessible Scroll Regions (WCAG 2.1.1)
+
+A scrollable container with no focusable elements inside is unreachable by keyboard-only users, preventing them from scrolling. To solve this, the container itself is made keyboard-focusable and exposed to assistive technologies.
+
+### Component: `src/components/MilestonesList.tsx`
+
+When the milestone list container is populated, we apply accessibility properties directly to the scroll container:
+
+1. **`role="region"`**: Exposes the element as a landmark region.
+2. **`aria-label="Milestones list"`**: Provides a unique, descriptive accessible name. This name is distinct from the outer `<section>`'s name (`"Milestones"`) to satisfy `landmark-unique` rules.
+3. **`tabIndex={0}`**: Places the container in the keyboard tab order so users can navigate to it and scroll via arrow keys.
+4. **Visible Focus Ring**: Applies styled focus outlines (`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2`) so visual keyboard users can track focus.
+
+```tsx
+<div
+  role={milestones.length > 0 ? 'region' : undefined}
+  aria-label={milestones.length > 0 ? 'Milestones list' : undefined}
+  tabIndex={milestones.length > 0 ? 0 : undefined}
+  className="... overflow-y-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2"
+>
+```
+
+### Design Rationale: Always Applying when List is Populated
+
+Instead of dynamically measuring DOM sizes (e.g. `scrollHeight > clientHeight`) which requires layout execution, we always apply these properties when the list contains items. This guarantees:
+1. **Hydration Consistency**: Identical SSR and client-side HTML output, preventing hydration errors and layout shifts.
+2. **Deterministic JSDOM Testing**: JSDOM does not calculate visual rendering or scroll heights (metrics default to zero). Always applying the attributes when populated ensures unit tests and automated accessibility audits (e.g. `jest-axe`) can inspect and verify the accessibility tree.

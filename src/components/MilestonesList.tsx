@@ -25,7 +25,23 @@ const MilestonesList = ({ milestones }: MilestonesListProps) => {
         <span className="text-sm text-slate-500">{milestones.length} total</span>
       </div>
 
-      <div className="mt-6 space-y-4 max-h-[calc(100vh-260px)] overflow-y-auto pr-2">
+      {/* 
+        Keyboard Accessibility (WCAG 2.1.1):
+        We make the scrollable milestones container focusable (tabIndex={0}) and assign it a 'region' role
+        with an accessible label (aria-label="Milestones list"). This allows keyboard-only users to
+        navigate to the region and scroll its contents using the arrow keys.
+        
+        Why this is always applied when the list is populated:
+        Always applying tabIndex={0} when milestones are present ensures:
+        1. Consistency between Server-Side Rendering (SSR) and client hydration, avoiding layout/hydration shifts.
+        2. Testability in JSDOM environments where DOM layout metrics (clientHeight/scrollHeight) are always zero.
+      */}
+      <div
+        role={milestones.length > 0 ? 'region' : undefined}
+        aria-label={milestones.length > 0 ? 'Milestones list' : undefined}
+        tabIndex={milestones.length > 0 ? 0 : undefined}
+        className="mt-6 space-y-4 max-h-[calc(100vh-260px)] overflow-y-auto pr-2 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2"
+      >
         {milestones.map((milestone) => (
           <article
             key={milestone.id}
