@@ -1,4 +1,4 @@
-import { checkStorageAvailability, getItem, setItem, removeItem, resetCache } from '../safeStorage';
+import { getItem, setItem, removeItem, resetCache } from '../safeStorage';
 
 describe('safeStorage', () => {
   let originalLocalStorage: Storage;
