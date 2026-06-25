@@ -1,49 +1,57 @@
-import { notFound } from 'next/navigation';
+'use client';
+
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import ContractSummary from '@/components/ContractSummary';
-import MilestonesList, { Milestone } from '@/components/MilestonesList';
+import MilestonesList from '@/components/MilestonesList';
 import ActionPanel from '@/components/ActionPanel';
+import { ContractSummarySkeleton } from '@/components/ContractSummarySkeleton';
+import { MilestonesListSkeleton } from '@/components/MilestonesListSkeleton';
+import SafeBoundary from '@/components/SafeBoundary';
+import { resolveContractData, ContractData } from '@/lib/contractResolver';
 import { isValidContractId } from '@/lib/validateContractId';
-
-const sampleMilestones: Milestone[] = [
-  {
-    id: 'ms-1',
-    title: 'Kickoff and scope approval',
-    status: 'Completed',
-    payout: 1500,
-    currency: 'USD',
-    dueDate: '2026-05-04',
-  },
-  {
-    id: 'ms-2',
-    title: 'Design and review',
-    status: 'Pending',
-    payout: 2500,
-    currency: 'USD',
-    dueDate: '2026-06-01',
-  },
-  {
-    id: 'ms-3',
-    title: 'Final delivery',
-    status: 'Pending',
-    payout: 3000,
-    currency: 'USD',
-    dueDate: '2026-07-12',
-  },
-];
 
 interface ContractDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-const ContractDetailPage = async ({ params }: ContractDetailPageProps) => {
-  const { id } = await params;
+const ContractDetailPageContent = ({ id }: { id: string }) => {
+  const [contractData, setContractData] = useState<ContractData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const isMountedRef = useRef(true);
 
-  if (!isValidContractId(id)) {
-    notFound();
-  }
+  useEffect(() => {
+    isMountedRef.current = true;
 
-  const status = 'Active' as const;
+    const loadContract = async () => {
+      try {
+        setIsLoading(true);
+        setErrorMessage(null);
+        const data = await resolveContractData(id);
+
+        if (isMountedRef.current) {
+          setContractData(data);
+        }
+      } catch (error) {
+        if (isMountedRef.current) {
+          setErrorMessage(
+            error instanceof Error ? error.message : 'Failed to load contract. Please try again.'
+          );
+        }
+      } finally {
+        if (isMountedRef.current) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadContract();
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [id]);
 
   const handleSubmitMilestone = () => {
     // Replace with real milestone submission flow.
@@ -60,6 +68,8 @@ const ContractDetailPage = async ({ params }: ContractDetailPageProps) => {
   const handleViewSummary = () => {
     // Replace with summary navigation.
   };
+
+  const status = contractData?.status || 'Active';
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
@@ -79,20 +89,29 @@ const ContractDetailPage = async ({ params }: ContractDetailPageProps) => {
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
           <div className="space-y-6">
-            <ContractSummary
-              contractName="Stellar Escrow Implementation"
-              parties={[
-                { label: 'Client', address: 'GABC1234DEF5678HIJK9012LMNO3456PQRS7890' },
-                { label: 'Freelancer', address: 'GXYZ9876STU5432VWXQ1098ABCD7654EFGH3210' },
-              ]}
-              totalValue={7000}
-              currency="USD"
-              status={status}
-              createdAt="Apr 20, 2026"
-              milestoneCount={sampleMilestones.length}
-            />
+            <SafeBoundary>
+              {isLoading ? (
+                <ContractSummarySkeleton />
+              ) : contractData ? (
+                <ContractSummary
+                  contractName={contractData.name}
+                  parties={contractData.parties}
+                  totalValue={contractData.totalValue}
+                  currency={contractData.currency}
+                  status={contractData.status}
+                  createdAt={contractData.createdAt}
+                  milestoneCount={contractData.milestones.length}
+                />
+              ) : null}
+            </SafeBoundary>
 
-            <MilestonesList milestones={sampleMilestones} />
+            <SafeBoundary>
+              {isLoading ? (
+                <MilestonesListSkeleton />
+              ) : contractData ? (
+                <MilestonesList milestones={contractData.milestones} />
+              ) : null}
+            </SafeBoundary>
           </div>
 
           <div className="space-y-6">
@@ -102,12 +121,25 @@ const ContractDetailPage = async ({ params }: ContractDetailPageProps) => {
               onReleaseFunds={handleReleaseFunds}
               onDispute={handleDispute}
               onViewSummary={handleViewSummary}
+              isLoading={isLoading}
+              errorMessage={errorMessage || undefined}
             />
           </div>
         </div>
       </div>
     </main>
   );
+};
+
+const ContractDetailPage = async ({ params }: ContractDetailPageProps) => {
+  const { id } = await params;
+
+  if (!isValidContractId(id)) {
+    const { notFound } = await import('next/navigation');
+    notFound();
+  }
+
+  return <ContractDetailPageContent id={id} />;
 };
 
 export default ContractDetailPage;
