@@ -5,7 +5,11 @@ import { ToastDemo } from '@/components/toast/toast-demo';
 import { FormField } from '@/components/FormField';
 import { ErrorSummary } from '@/components/ErrorSummary';
 import { useToast } from '@/components/toast/toast-provider';
-import { validateLogin } from '@/lib/validateLogin';
+import {
+  MAX_EMAIL_LENGTH,
+  MAX_PASSWORD_LENGTH,
+  validateLogin,
+} from '@/lib/validateLogin';
 
 export default function Home() {
   const [email, setEmail] = useState('');
@@ -15,6 +19,8 @@ export default function Home() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // `validateLogin` trims email and enforces both length ceilings, so a
+    // pasted value that exceeds the cap is rejected before any auth call.
     const newErrors = validateLogin(email, password);
     setErrors(newErrors);
 
@@ -58,6 +64,10 @@ export default function Home() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                // Security: cap pasted/typed input at MAX_EMAIL_LENGTH so the
+                // browser and the validator enforce the same ceiling. See
+                // `MAX_EMAIL_LENGTH` in src/lib/validateLogin.ts.
+                maxLength={MAX_EMAIL_LENGTH}
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
                 placeholder="you@example.com"
               />
@@ -73,6 +83,10 @@ export default function Home() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                // Security: cap pasted/typed input at MAX_PASSWORD_LENGTH. Mirrors
+                // the validator ceiling and prevents denial-of-service from
+                // arbitrarily long pasted secrets.
+                maxLength={MAX_PASSWORD_LENGTH}
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
                 placeholder="••••••••"
               />

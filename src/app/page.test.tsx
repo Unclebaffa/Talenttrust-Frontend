@@ -5,6 +5,10 @@ import { ToastProvider } from '@/components/toast/toast-provider';
 import { PreferencesProvider } from '@/lib/preferences';
 import { testA11y } from '@/test-utils/a11y';
 import userEvent from '@testing-library/user-event';
+import {
+  MAX_EMAIL_LENGTH,
+  MAX_PASSWORD_LENGTH,
+} from '@/lib/validateLogin';
 
 const renderWithProviders = (ui: React.ReactElement) => {
   return render(
@@ -364,6 +368,140 @@ describe('Home', () => {
     expect(
       screen.getByLabelText(/password/i),
     ).toBeVisible();
+  });
+
+  describe('input length & trim guards (issue #234)', () => {
+    it('applies the email maxLength attribute matching the validator ceiling', () => {
+      renderWithProviders(<Home />);
+      const emailInput = screen.getByLabelText(/Email/i);
+
+      expect(emailInput).toHaveAttribute('maxLength', String(MAX_EMAIL_LENGTH));
+      expect(MAX_EMAIL_LENGTH).toBe(254);
+    });
+
+    it('applies the password maxLength attribute matching the validator ceiling', () => {
+      renderWithProviders(<Home />);
+      const passwordInput = screen.getByLabelText(/Password/i);
+
+      expect(passwordInput).toHaveAttribute('maxLength', String(MAX_PASSWORD_LENGTH));
+      expect(MAX_PASSWORD_LENGTH).toBe(128);
+    });
+
+    it('trims whitespace around a valid email on submit and shows the success toast', async () => {
+      const user = userEvent.setup();
+
+      renderWithProviders(<Home />);
+
+      await user.type(
+        screen.getByLabelText(/Email/i),
+        '  test@example.com  ',
+      );
+      await user.type(
+        screen.getByLabelText(/Password/i),
+        'password123',
+      );
+
+      await user.click(
+        screen.getByRole('button', { name: /sign in/i }),
+      );
+
+      // No alert role (no error summary rendered)
+      expect(
+        screen.queryByRole('alert', { name: /there is a problem/i }),
+      ).not.toBeInTheDocument();
+
+      const toast = screen.getByRole('status');
+      expect(
+        within(toast).getByText(/submitted successfully/i),
+      ).toBeInTheDocument();
+    });
+
+    it('rejects a whitespace-only email as the "required" error', async () => {
+      const user = userEvent.setup();
+
+      renderWithProviders(<Home />);
+
+      await user.type(
+        screen.getByLabelText(/Email/i),
+        '   ',
+      );
+      await user.type(
+        screen.getByLabelText(/Password/i),
+        'password123',
+      );
+
+      await user.click(
+        screen.getByRole('button', { name: /sign in/i }),
+      );
+
+      // ErrorSummary surfaces the required error in the alert region
+      expect(
+        screen.getByRole('alert', { name: /there is a problem/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getAllByText('Email is required').length,
+      ).toBeGreaterThanOrEqual(2);
+    });
+
+    it('surfaces an over-length email error via ErrorSummary when the value exceeds the ceiling', async () => {
+      // We bypass the browser-level maxLength cap by setting the value via
+      // fireEvent.change (which mutates React state directly), then expect
+      // the validator to reject it.
+      const overlongEmail = `${'a'.repeat(MAX_EMAIL_LENGTH + 5)}@example.com`;
+      const user = userEvent.setup();
+
+      renderWithProviders(<Home />);
+
+      const emailInput = screen.getByLabelText(/Email/i);
+      const passwordInput = screen.getByLabelText(/Password/i);
+
+      fireEvent.change(emailInput, { target: { value: overlongEmail } });
+      fireEvent.change(passwordInput, { target: { value: 'password123' } });
+
+      await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+      const alert = screen.getByRole('alert', { name: /there is a problem/i });
+      expect(alert).toBeInTheDocument();
+      expect(
+        within(alert).getByText(/email must be no more than 254 characters/i),
+      ).toBeInTheDocument();
+
+      // The over-length message must also be available to the FormField for
+      // aria-describedby wiring (FormField renders the same error string).
+      expect(
+        screen.getAllByText(/email must be no more than 254 characters/i).length,
+      ).toBeGreaterThanOrEqual(2);
+
+      // The email input should be marked invalid.
+      expect(emailInput).toHaveAttribute('aria-invalid', 'true');
+    });
+
+    it('surfaces an over-length password error via ErrorSummary when the value exceeds the ceiling', async () => {
+      const overlongPassword = 'a'.repeat(MAX_PASSWORD_LENGTH + 5);
+
+      renderWithProviders(<Home />);
+
+      const emailInput = screen.getByLabelText(/Email/i);
+      const passwordInput = screen.getByLabelText(/Password/i);
+
+      fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
+      fireEvent.change(passwordInput, { target: { value: overlongPassword } });
+
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+      const alert = screen.getByRole('alert', { name: /there is a problem/i });
+      expect(alert).toBeInTheDocument();
+      expect(
+        within(alert).getByText(/password must be no more than 128 characters/i),
+      ).toBeInTheDocument();
+
+      expect(
+        screen.getAllByText(/password must be no more than 128 characters/i).length,
+      ).toBeGreaterThanOrEqual(2);
+
+      expect(passwordInput).toHaveAttribute('aria-invalid', 'true');
+    });
   });
 
 });
