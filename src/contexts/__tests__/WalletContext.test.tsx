@@ -1,7 +1,8 @@
 import React from 'react';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { WalletProvider, useWallet } from '../WalletContext';
+import { WalletProvider, useWallet, MOCKED_STELLAR_ADDRESS } from '../WalletContext';
+import { isValidStellarAddress } from '@/lib/stellarAddress';
 import { ToastProvider } from '@/components/toast/toast-provider';
 import { PreferencesProvider } from '@/lib/preferences';
 
@@ -68,8 +69,22 @@ describe('WalletContext', () => {
       });
 
       // After delay, address should be set and isConnecting should be false
-      expect(screen.getByTestId('address')).toHaveTextContent('0x71C7656EC7ab88b098defB751B7401B5f6d8976F');
+      expect(screen.getByTestId('address')).toHaveTextContent(MOCKED_STELLAR_ADDRESS);
       expect(screen.getByTestId('is-connecting')).toHaveTextContent('Not connecting');
+    });
+
+    it('sets a valid Stellar G-address that passes isValidStellarAddress', async () => {
+      renderWithProviders(<WalletConsumer />);
+
+      await act(async () => {
+        screen.getByTestId('connect-btn').click();
+      });
+
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      expect(isValidStellarAddress(screen.getByTestId('address').textContent)).toBe(true);
     });
   });
 
@@ -89,7 +104,7 @@ describe('WalletContext', () => {
         jest.advanceTimersByTime(1000);
       });
 
-      expect(screen.getByTestId('address')).toHaveTextContent('0x71C7656EC7ab88b098defB751B7401B5f6d8976F');
+      expect(screen.getByTestId('address')).toHaveTextContent(MOCKED_STELLAR_ADDRESS);
 
       // Disconnect
       await act(async () => {
@@ -143,7 +158,7 @@ describe('WalletContext', () => {
       await act(async () => {
         jest.advanceTimersByTime(1000);
       });
-      expect(screen.getByTestId('address')).toHaveTextContent('0x71C7656EC7ab88b098defB751B7401B5f6d8976F');
+      expect(screen.getByTestId('address')).toHaveTextContent(MOCKED_STELLAR_ADDRESS);
 
       // Advance time by IDLE_TIMEOUT
       await act(async () => {
@@ -182,7 +197,7 @@ describe('WalletContext', () => {
       });
 
       // Should still be connected because timer was reset
-      expect(screen.getByTestId('address')).toHaveTextContent('0x71C7656EC7ab88b098defB751B7401B5f6d8976F');
+      expect(screen.getByTestId('address')).toHaveTextContent(MOCKED_STELLAR_ADDRESS);
 
       // Advance time by full IDLE_TIMEOUT from activity
       await act(async () => {
@@ -210,7 +225,7 @@ describe('WalletContext', () => {
       });
 
       // Should still be connected
-      expect(screen.getByTestId('address')).toHaveTextContent('0x71C7656EC7ab88b098defB751B7401B5f6d8976F');
+      expect(screen.getByTestId('address')).toHaveTextContent(MOCKED_STELLAR_ADDRESS);
     });
 
     it('cleans up listeners and timer on unmount', async () => {
