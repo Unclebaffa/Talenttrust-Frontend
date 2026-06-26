@@ -50,49 +50,55 @@ describe('a11y: MilestonesList', () => {
 describe('a11y: ContractSummary', () => {
   it('active contract with multiple parties has no violations', async () => {
     await testA11y(
-      <ContractSummary
-        contractName="Escrow Contract"
-        parties={[
-          { label: 'Client', address: 'GABC1234DEF5678HIJK9012LMNO3456PQRS7890' },
-          { label: 'Freelancer', address: 'GXYZ9876STU5432VWXQ1098ABCD7654EFGH3210' },
-        ]}
-        totalValue={1200}
-        currency="USD"
-        status="Active"
-        createdAt="May 1, 2026"
-        milestoneCount={2}
-      />
+      <ToastProvider>
+        <ContractSummary
+          contractName="Escrow Contract"
+          parties={[
+            { label: 'Client', address: 'GABC1234DEF5678HIJK9012LMNO3456PQRS7890' },
+            { label: 'Freelancer', address: 'GXYZ9876STU5432VWXQ1098ABCD7654EFGH3210' },
+          ]}
+          totalValue={1200}
+          currency="USD"
+          status="Active"
+          createdAt="May 1, 2026"
+          milestoneCount={2}
+        />
+      </ToastProvider>
     );
   });
 
   it('disputed contract has no violations', async () => {
     await testA11y(
-      <ContractSummary
-        contractName="Escrow Contract"
-        parties={[{ label: 'Client', address: 'GABC1234DEF5678HIJK9012LMNO3456PQRS7890' }]}
-        totalValue={5000}
-        currency="USD"
-        status="Disputed"
-        createdAt="Apr 15, 2026"
-        milestoneCount={5}
-      />
+      <ToastProvider>
+        <ContractSummary
+          contractName="Escrow Contract"
+          parties={[{ label: 'Client', address: 'GABC1234DEF5678HIJK9012LMNO3456PQRS7890' }]}
+          totalValue={5000}
+          currency="USD"
+          status="Disputed"
+          createdAt="Apr 15, 2026"
+          milestoneCount={5}
+        />
+      </ToastProvider>
     );
   });
 
   it('completed contract with milestoneCount of 1 has no violations', async () => {
     await testA11y(
-      <ContractSummary
-        contractName="Quick Project"
-        parties={[
-          { label: 'Client', address: 'GABC1234DEF5678HIJK9012LMNO3456PQRS7890' },
-          { label: 'Freelancer', address: 'GXYZ9876STU5432VWXQ1098ABCD7654EFGH3210' },
-        ]}
-        totalValue={800}
-        currency="USD"
-        status="Completed"
-        createdAt="Mar 1, 2026"
-        milestoneCount={1}
-      />
+      <ToastProvider>
+        <ContractSummary
+          contractName="Quick Project"
+          parties={[
+            { label: 'Client', address: 'GABC1234DEF5678HIJK9012LMNO3456PQRS7890' },
+            { label: 'Freelancer', address: 'GXYZ9876STU5432VWXQ1098ABCD7654EFGH3210' },
+          ]}
+          totalValue={800}
+          currency="USD"
+          status="Completed"
+          createdAt="Mar 1, 2026"
+          milestoneCount={1}
+        />
+      </ToastProvider>
     );
   });
 });

@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import { ToastProvider } from '@/components/toast/toast-provider';
 import ContractDetailPage from '../page';
 
 // Mock next/navigation so notFound() throws a known sentinel.
@@ -10,7 +11,11 @@ describe('ContractDetailPage', () => {
   it('renders the contract overview and action panel for a valid id', async () => {
     const params = Promise.resolve({ id: '123' });
     const Component = await ContractDetailPage({ params });
-    render(Component);
+    render(
+      <ToastProvider>
+        {Component}
+      </ToastProvider>
+    );
 
     await waitFor(() => {
       expect(screen.getByText('Contract #123')).toBeInTheDocument();
@@ -24,7 +29,11 @@ describe('ContractDetailPage', () => {
   it('keeps the "Back to contracts" link for a valid id', async () => {
     const params = Promise.resolve({ id: 'contract-42' });
     const Component = await ContractDetailPage({ params });
-    render(Component);
+    render(
+      <ToastProvider>
+        {Component}
+      </ToastProvider>
+    );
 
     expect(screen.getByRole('link', { name: /back to contracts/i })).toHaveAttribute('href', '/contracts');
   });

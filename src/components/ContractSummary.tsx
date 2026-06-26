@@ -1,6 +1,10 @@
+'use client';
+
+import React, { useState } from 'react';
 import StatusBadge, { StatusType } from './StatusBadge';
 import { truncateAddress } from '@/lib/truncateAddress';
 import { usePreferences } from '@/lib/preferences';
+import { useToast } from '@/components/toast/toast-provider';
 
 export type ContractParty = {
   label: string;
@@ -27,7 +31,52 @@ const ContractSummary = ({
   milestoneCount,
 }: ContractSummaryProps) => {
   const { formatAmount } = usePreferences();
+  const { showSuccess, showError } = useToast();
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+
   const formattedValue = formatAmount(totalValue, currency);
+
+  /**
+   * Copies the specified party address to the system clipboard.
+   *
+   * Guards against environments where the Clipboard API is unavailable
+   * (e.g., insecure contexts or older browsers) and wraps the asynchronous
+   * write in a try/catch block so that any clipboard write errors are caught
+   * and displayed as user-visible error toasts rather than unhandled promise rejections.
+   *
+   * - Sets the `copiedAddress` state to the address upon successful copy,
+   *   reverting it back to null after 2 seconds.
+   * - Triggers a success toast on successful clipboard write.
+   * - Triggers an error toast on any clipboard write failures.
+   *
+   * @param address - The full, non-truncated wallet address to copy.
+   */
+  const handleCopy = async (address: string) => {
+    if (!navigator?.clipboard?.writeText) {
+      showError({
+        title: 'Copy not supported',
+        description: 'Your browser does not support clipboard access. Please copy the address manually.',
+      });
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopiedAddress(address);
+      showSuccess({
+        title: 'Address copied',
+        description: 'The address has been successfully copied to your clipboard.',
+      });
+      setTimeout(() => {
+        setCopiedAddress(null);
+      }, 2000);
+    } catch {
+      showError({
+        title: 'Copy failed',
+        description: 'Unable to copy the address to your clipboard. Please try again.',
+      });
+    }
+  };
 
   return (
     <section
@@ -56,12 +105,38 @@ const ContractSummary = ({
           <p className="mt-2 text-base font-medium text-slate-900">{createdAt}</p>
           <p className="mt-4 text-sm text-slate-500">Parties</p>
           <div className="mt-3 space-y-3">
-            {parties.map((party) => (
-              <div key={party.label} className="rounded-2xl bg-white p-3 text-sm ring-1 ring-slate-200">
-                <p className="text-slate-600 font-medium">{party.label}</p>
-                <p className="mt-1 text-slate-500">{truncateAddress(party.address)}</p>
-              </div>
-            ))}
+            {parties.map((party) => {
+              const isCopied = copiedAddress === party.address;
+              return (
+                <div
+                  key={party.label}
+                  className="rounded-2xl bg-white p-3 text-sm ring-1 ring-slate-200 flex items-center justify-between gap-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-slate-600 font-medium">{party.label}</p>
+                    <p className="mt-1 text-slate-500 font-mono truncate">
+                      {truncateAddress(party.address)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleCopy(party.address)}
+                    className="flex-shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    aria-label={`Copy ${party.label} address to clipboard`}
+                    title="Copy address"
+                  >
+                    {isCopied ? (
+                      <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
