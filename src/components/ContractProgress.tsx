@@ -70,7 +70,7 @@ function calculateProgress(milestones: Milestone[]) {
  * - Progress bar uses `role="progressbar"` with `aria-valuenow`, `aria-valuemin`, and `aria-valuemax`.
  * - Screen reader text provides context for the progress percentage.
  *
- * @param props - Component props.
+ * @param props - Component props
  * @param props.milestones - Array of milestone objects.
  *
  * @example
