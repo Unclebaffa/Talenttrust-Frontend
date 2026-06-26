@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import ContractSummary from '@/components/ContractSummary';
+import ContractProgress from '@/components/ContractProgress';
 import MilestonesList, { Milestone } from '@/components/MilestonesList';
 import ActionPanel from '@/components/ActionPanel';
 import { isValidContractId } from '@/lib/validateContractId';
@@ -91,6 +92,8 @@ const ContractDetailPage = async ({ params }: ContractDetailPageProps) => {
               createdAt="Apr 20, 2026"
               milestoneCount={sampleMilestones.length}
             />
+
+            <ContractProgress milestones={sampleMilestones} />
 
             <MilestonesList milestones={sampleMilestones} />
           </div>
