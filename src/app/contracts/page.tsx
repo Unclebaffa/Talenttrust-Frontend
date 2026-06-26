@@ -2,9 +2,8 @@
 
 import React, { useState, useCallback } from 'react';
 import EmptyState from '../../components/EmptyState';
-import CreateContractForm from '@/components/contracts/CreateContractForm';
-import { listContracts } from '@/lib/repository';
-
+import { ContractCreationForm } from '../../components/ContractCreationForm';
+import { listContracts, saveContract } from '@/lib/repository';
 import type { Contract } from '@/types/domain';
 
 const ContractsPage: React.FC = () => {
@@ -13,23 +12,27 @@ const ContractsPage: React.FC = () => {
   const [contracts, setContracts] = useState<Contract[]>(() => listContracts());
   const [showForm, setShowForm] = useState(false);
 
-  /** Opens the create-contract form. */
+  /**
+   * Opens the contract creation form modal.
+   */
   const handleCreateContract = useCallback(() => {
     setShowForm(true);
   }, []);
 
   /**
-   * Called by CreateContractForm after it has already persisted the contract
-   * via `saveContract`. Re-reads localStorage so the list reflects the new
-   * record, then closes the form.
+   * Handles form submission by persisting the contract and refreshing the list.
    */
-  const handleFormSuccess = useCallback(() => {
+  const handleSubmitContract = useCallback((contract: Contract) => {
+    saveContract(contract);
+    // Re-read storage so the component reflects the persisted state.
     setContracts(listContracts());
     setShowForm(false);
   }, []);
 
-  /** Closes the form without making any changes. */
-  const handleFormCancel = useCallback(() => {
+  /**
+   * Closes the contract creation form modal.
+   */
+  const handleCancelForm = useCallback(() => {
     setShowForm(false);
   }, []);
 
@@ -82,6 +85,13 @@ const ContractsPage: React.FC = () => {
             ))}
           </ul>
         </>
+      )}
+
+      {showForm && (
+        <ContractCreationForm
+          onSubmit={handleSubmitContract}
+          onCancel={handleCancelForm}
+        />
       )}
     </main>
   );
