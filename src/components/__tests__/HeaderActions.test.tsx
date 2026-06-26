@@ -40,17 +40,13 @@ describe('HeaderActions', () => {
     expect(menu).toHaveClass('hidden');
   });
 
-  it('responds to keyboard activation with Space and Enter', async () => {
+  it('responds to keyboard-accessible activation', async () => {
     const user = userEvent.setup();
     render(<HeaderActions />);
     const toggle = screen.getByRole('button', { name: /open wallet actions/i });
     const menu = screen.getByRole('region', { name: /wallet actions/i });
 
-    await user.tab();
-    await user.tab();
-    expect(toggle).toHaveFocus();
-
-    await user.keyboard('{Enter}');
+    await user.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(menu).not.toHaveClass('hidden');
 

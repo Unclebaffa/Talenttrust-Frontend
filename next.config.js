@@ -38,6 +38,9 @@ const cspHeader = cspDirectives.join('; ');
 
 const nextConfig = {
   reactStrictMode: true,
+  turbopack: {
+    root: __dirname,
+  },
 
   async headers() {
     return [
