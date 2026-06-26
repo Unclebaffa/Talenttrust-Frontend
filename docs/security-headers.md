@@ -20,10 +20,15 @@ This project sets HTTP response headers via the `headers()` function in
 ### Current directives
 
 ```
+# Development (NODE_ENV=development)
 default-src 'self'
 script-src 'self' 'unsafe-eval'
 style-src 'self' 'unsafe-inline'
-img-src 'self' data:
+# Production (NODE_ENV=production)
+default-src 'self'
+script-src 'self'
+style-src 'self'
+img-src 'self' data:'
 font-src 'self'
 connect-src 'self'
 frame-src 'self'

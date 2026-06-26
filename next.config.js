@@ -13,30 +13,28 @@
                            wss://relay.walletconnect.com          (WalletConnect relay)
     script-src may also need the provider's injection origin.
 */
-const cspHeader = [
-  "default-src 'self'",
-
-  // 'unsafe-eval' is required by Next.js Fast Refresh in dev mode.
-  // For production deploys (next build && next start) it can be
-  // dropped — uncomment the production-only line below and delete
-  // the dev line when you're ready.
-  "script-src 'self' 'unsafe-eval'",
-  // "script-src 'self'",   // ← production-safe version
-
-  // style-src 'unsafe-inline': unavoidable with Tailwind + Next.js
-  // inline-style injection.  Documented in docs/security-headers.md
-  // along with a nonce / strict-dynamic tightening path.
-  "style-src 'self' 'unsafe-inline'",
-
-  "img-src 'self' data:",
+// Build CSP directives conditionally based on environment
+const cspDirectives = ["default-src 'self'"];
+if (process.env.NODE_ENV === 'development') {
+  // Development: allow unsafe-eval for Fast Refresh and unsafe-inline for Tailwind styles
+  cspDirectives.push("script-src 'self' 'unsafe-eval'");
+  cspDirectives.push("style-src 'self' 'unsafe-inline'");
+} else {
+  // Production: tighten CSP
+  cspDirectives.push("script-src 'self'");
+  cspDirectives.push("style-src 'self'");
+}
+cspDirectives.push(
+  "img-src 'self' data:'",
   "font-src 'self'",
   "connect-src 'self'",
   "frame-src 'self'",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
-  "frame-ancestors 'none'",
-].join('; ');
+  "frame-ancestors 'none'"
+);
+const cspHeader = cspDirectives.join('; ');
 
 const nextConfig = {
   reactStrictMode: true,
