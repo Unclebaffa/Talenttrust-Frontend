@@ -27,7 +27,7 @@ export type ActionPanelDisabledReasons = {
  */
 export type ActionPanelProps = {
   /** 
-   * Current lifecycle status of the contract.
+   * Current lifecycle status of the contract
    * This drives which actions are visible and their order (mapped via `getActionButtons`).
    */
   status: 'Active' | 'Completed' | 'Disputed' | 'Pending';
