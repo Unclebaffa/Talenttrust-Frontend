@@ -28,12 +28,6 @@ describe('ContractsPage', () => {
     mockListContracts.mockReturnValue([]);
     mockIsValidStellarAddress.mockImplementation((addr: string) => addr === VALID_ADDRESS);
   });
-  beforeEach(() => {
-    jest.clearAllMocks();
-    localStorage.clear();
-    mockListContracts.mockReturnValue([]);
-    mockIsValidStellarAddress.mockImplementation((addr: string) => addr === VALID_ADDRESS);
-  });
 
   describe('Empty State', () => {
     it('renders EmptyState when contracts array is empty', () => {
