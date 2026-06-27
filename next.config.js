@@ -42,16 +42,30 @@ const nextConfig = {
     root: __dirname,
   },
 
+  /**
+   * Apply baseline security headers to every response.
+   * Revisit COOP/CORP if the app later adds popup auth flows,
+   * cross-site asset sharing, or third-party embeds.
+   */
   async headers() {
     return [
       {
         // Apply security headers to every route
         source: '/(.*)',
         headers: [
+          // Restrict resource origins without changing the existing dev/prod CSP behavior.
           { key: 'Content-Security-Policy', value: cspHeader },
+          // Legacy clickjacking protection for browsers that do not enforce frame-ancestors.
           { key: 'X-Frame-Options', value: 'DENY' },
+          // Prevent MIME sniffing so assets are interpreted as declared.
           { key: 'X-Content-Type-Options', value: 'nosniff' },
+          // Keep full referrers on same-origin navigation and trim cross-origin referrers to origin only.
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          // Isolate the top-level browsing context from cross-origin windows and popups.
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+          // Prevent other origins from embedding or hotlinking app-served assets.
+          { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
+          // Enforce HTTPS in supported browsers once the site is loaded over TLS.
           { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
 
           // Bonus hardening headers (not part of the original spec but

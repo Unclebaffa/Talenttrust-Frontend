@@ -19,8 +19,8 @@ describe('truncateAddress', () => {
   });
 
   it('normalizes valid Stellar addresses before truncating them', () => {
-    const validAddress = `g${'a'.repeat(55)}`;
+    const validAddress = `gaaqcaibaeaQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQDZ7H`;
 
-    expect(truncateAddress(validAddress)).toBe('GAAAAA...AAAA');
+    expect(truncateAddress(validAddress)).toBe('GAAQCA...DZ7H');
   });
 });

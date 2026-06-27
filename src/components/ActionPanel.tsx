@@ -2,26 +2,58 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useWallet } from '@/contexts/WalletContext';
+import { useToast } from '@/components/toast/toast-provider';
 import { ConfirmDialog } from './ConfirmDialog';
 
+/**
+ * Defines the per-action screen-reader-only disabled reasons.
+ * When a reason is provided for an action, the corresponding button is disabled,
+ * and the reason text is rendered into a visually hidden `span` that is linked
+ * to the button via `aria-describedby` (e.g., `id="action-panel-submitMilestone-reason"`).
+ */
 export type ActionPanelDisabledReasons = {
+  /** Screen-reader description for why "Submit Milestone" is disabled. */
   submitMilestone?: string;
+  /** Screen-reader description for why "Release Funds" is disabled. */
   releaseFunds?: string;
+  /** Screen-reader description for why "Dispute" is disabled. */
   dispute?: string;
+  /** Screen-reader description for why "View Summary" is disabled. */
   viewSummary?: string;
 };
 
+/**
+ * Props for the ActionPanel component.
+ */
 export type ActionPanelProps = {
+  /** 
+   * Current lifecycle status of the contract.
+   * This drives which actions are visible and their order (mapped via `getActionButtons`).
+   */
   status: 'Active' | 'Completed' | 'Disputed' | 'Pending';
+  /** Callback triggered when the user initiates a milestone submission. */
   onSubmitMilestone?: () => void;
+  /** Callback triggered when the user initiates a dispute. */
   onDispute?: () => void;
+  /** Callback triggered when the user releases funds to the freelancer. */
   onReleaseFunds?: () => void;
+  /** Callback triggered to view the summary of a completed contract. */
   onViewSummary?: () => void;
-  /** Disable every action button and announce a loading reason to AT users. */
+  /** 
+   * Disables every visible action button globally and maps their `aria-describedby` 
+   * to a shared loading reason (`action-panel-loading-reason`). Use this while 
+   * fetching contract or wallet state. 
+   */
   isLoading?: boolean;
-  /** Render a role="alert" region above the actions when something went wrong. */
+  /** 
+   * Render a `role="alert"` region above the actions to announce transient 
+   * errors (like network failures) to assistive technologies. 
+   */
   errorMessage?: string;
-  /** Per-action accessible reason for why a button is currently disabled. */
+  /** 
+   * Per-action accessible reason for why a specific button is disabled. 
+   * This is useful for wallet-gating, unmet conditions, or missing permissions.
+   */
   disabledReasons?: ActionPanelDisabledReasons;
 };
 
@@ -35,6 +67,27 @@ const getActionButtons = (status: ActionPanelProps['status']) => {
   return ['View Summary'];
 };
 
+type ConfirmAction = 'submit' | 'release' | 'dispute' | null;
+
+const CONFIRM_COPY = {
+  // Submit milestone is confirmation-gated to match other escrow-changing actions.
+  submit: {
+    title: 'Confirm Submit Milestone',
+    description: 'Are you sure you want to submit this milestone for approval? This action cannot be undone.',
+    confirmLabel: 'Submit Milestone',
+  },
+  release: {
+    title: 'Confirm Release Funds',
+    description: 'Are you sure you want to release funds? This action cannot be undone.',
+    confirmLabel: 'Release Funds',
+  },
+  dispute: {
+    title: 'Confirm Dispute',
+    description: 'Are you sure you want to open a dispute? This action cannot be undone.',
+    confirmLabel: 'Dispute',
+  },
+} as const;
+
 const ActionPanel = ({
   status,
   onSubmitMilestone,
@@ -47,6 +100,7 @@ const ActionPanel = ({
 }: ActionPanelProps) => {
   const actions = getActionButtons(status);
   const { address } = useWallet();
+  const { showSuccess } = useToast();
   const isWalletConnected = !!address;
   const noWalletMsg = 'Connect wallet to perform this action';
   const panelRef = useRef<HTMLElement | null>(null);
@@ -59,22 +113,26 @@ const ActionPanel = ({
   const focusRingClass =
     'focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-blue-500';
 
-  // Confirmation dialog state
-  const [confirmAction, setConfirmAction] = useState<'release' | 'dispute' | null>(null);
+  // Confirmation dialog state tracks the currently gated escrow action.
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const triggerButtonRef = useRef<HTMLButtonElement | null>(null);
   const previousConfirmActionRef = useRef<'release' | 'dispute' | null>(null);
 
-  const handleOpenConfirm = (
-    action: 'release' | 'dispute',
-    triggerButton: HTMLButtonElement,
-  ) => {
-    triggerButtonRef.current = triggerButton;
+  const handleOpenConfirm = (action: Exclude<ConfirmAction, null>) => {
     setConfirmAction(action);
   };
 
   const handleConfirm = () => {
-    if (confirmAction === 'release') onReleaseFunds?.();
-    else if (confirmAction === 'dispute') onDispute?.();
+    if (confirmAction === 'submit') {
+      onSubmitMilestone?.();
+      showSuccess({
+        title: 'Milestone submitted',
+      });
+    } else if (confirmAction === 'release') {
+      onReleaseFunds?.();
+    } else if (confirmAction === 'dispute') {
+      onDispute?.();
+    }
     setConfirmAction(null);
   };
 
@@ -151,7 +209,7 @@ const ActionPanel = ({
         {actions.includes('Submit Milestone') && (
           <button
             type="button"
-            onClick={() => onSubmitMilestone?.()}
+            onClick={() => handleOpenConfirm('submit')}
             disabled={!isWalletConnected || isLoading || !!disabledReasons?.submitMilestone}
             title={!isWalletConnected ? noWalletMsg : undefined}
             aria-label="Submit milestone for approval"
@@ -207,9 +265,9 @@ const ActionPanel = ({
       {/* Confirmation Dialog */}
       <ConfirmDialog
         isOpen={confirmAction !== null}
-        title={confirmAction === 'release' ? 'Confirm Release Funds' : confirmAction === 'dispute' ? 'Confirm Dispute' : ''}
-        description={confirmAction === 'release' ? 'Are you sure you want to release funds? This action cannot be undone.' : confirmAction === 'dispute' ? 'Are you sure you want to open a dispute? This action cannot be undone.' : ''}
-        confirmLabel={confirmAction === 'release' ? 'Release Funds' : confirmAction === 'dispute' ? 'Dispute' : 'Confirm'}
+        title={confirmAction ? CONFIRM_COPY[confirmAction].title : ''}
+        description={confirmAction ? CONFIRM_COPY[confirmAction].description : ''}
+        confirmLabel={confirmAction ? CONFIRM_COPY[confirmAction].confirmLabel : 'Confirm'}
         cancelLabel="Cancel"
         onConfirm={handleConfirm}
         onCancel={handleCancel}

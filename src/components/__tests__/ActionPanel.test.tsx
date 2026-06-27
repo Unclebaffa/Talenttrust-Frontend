@@ -1,8 +1,39 @@
 import React from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import ActionPanel from '../ActionPanel';
+import { useWallet } from '@/contexts/WalletContext';
+import { useToast } from '@/components/toast/toast-provider';
+
+const mockShowSuccess = jest.fn();
+
+jest.mock('@/components/toast/toast-provider', () => ({
+  useToast: jest.fn(() => ({
+    showSuccess: mockShowSuccess,
+  })),
+}));
+
+const mockUseWallet = jest.mocked(useWallet);
+const mockUseToast = jest.mocked(useToast);
 
 describe('ActionPanel', () => {
+  beforeEach(() => {
+    mockShowSuccess.mockClear();
+    mockUseToast.mockReturnValue({
+      showSuccess: mockShowSuccess,
+      showError: jest.fn(),
+      toasts: [],
+      dismissToast: jest.fn(),
+    });
+    mockUseWallet.mockReturnValue({
+      address: '0x123',
+      isConnecting: false,
+      error: null,
+      connect: jest.fn(),
+      disconnect: jest.fn(),
+    });
+  });
+
   it('renders Active actions when status is Active', () => {
     const onSubmitMilestone = jest.fn();
     const onReleaseFunds = jest.fn();
@@ -22,7 +53,25 @@ describe('ActionPanel', () => {
     expect(screen.getByRole('button', { name: /Dispute/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Submit milestone/i }));
+
+    const dialog = screen.getByRole('dialog', { name: /confirm submit milestone/i });
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveTextContent(
+      'Are you sure you want to submit this milestone for approval? This action cannot be undone.'
+    );
+
+    fireEvent.click(within(dialog).getByRole('button', { name: /Submit Milestone/i }));
+
     expect(onSubmitMilestone).toHaveBeenCalledTimes(1);
+    expect(mockShowSuccess).toHaveBeenCalledTimes(1);
+    expect(mockShowSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Milestone submitted',
+      })
+    );
+    expect(onSubmitMilestone.mock.invocationCallOrder[0]).toBeLessThan(
+      mockShowSuccess.mock.invocationCallOrder[0]
+    );
 
     // Release Funds opens a confirmation dialog — confirm it
     fireEvent.click(screen.getByRole('button', { name: /Release funds/i }));
@@ -33,6 +82,37 @@ describe('ActionPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /Dispute/i }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /Dispute/i }));
     expect(onDispute).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the submit confirmation dialog with accessible labels and traps focus', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ActionPanel
+        status="Active"
+        onSubmitMilestone={jest.fn()}
+        onReleaseFunds={jest.fn()}
+        onDispute={jest.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /submit milestone/i }));
+
+    const dialog = screen.getByRole('dialog', { name: /confirm submit milestone/i });
+    const cancelButton = within(dialog).getByRole('button', { name: /cancel/i });
+    const confirmButton = within(dialog).getByRole('button', { name: /submit milestone/i });
+
+    expect(cancelButton).toHaveFocus();
+    expect(confirmButton).toBeInTheDocument();
+
+    await user.tab();
+    expect(confirmButton).toHaveFocus();
+
+    await user.tab();
+    expect(cancelButton).toHaveFocus();
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: /confirm submit milestone/i })).not.toBeInTheDocument();
   });
 
   it('keeps actions in a logical keyboard tab order with visible focus rings', () => {
@@ -92,6 +172,31 @@ describe('ActionPanel', () => {
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /Dispute/i }));
 
     expect(onDispute).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps submit milestone disabled when the wallet is disconnected', () => {
+    mockUseWallet.mockReturnValue({
+      address: null,
+      isConnecting: false,
+      error: null,
+      connect: jest.fn(),
+      disconnect: jest.fn(),
+    });
+
+    const onSubmitMilestone = jest.fn();
+
+    render(<ActionPanel status="Active" onSubmitMilestone={onSubmitMilestone} />);
+
+    const submitButton = screen.getByRole('button', { name: /submit milestone for approval/i });
+
+    expect(submitButton).toBeDisabled();
+    expect(submitButton).toHaveAttribute('title', 'Connect wallet to perform this action');
+
+    fireEvent.click(submitButton);
+
+    expect(onSubmitMilestone).not.toHaveBeenCalled();
+    expect(mockShowSuccess).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('returns focus to the destructive trigger when confirmation is cancelled', () => {

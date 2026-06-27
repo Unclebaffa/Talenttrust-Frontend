@@ -70,6 +70,7 @@ The app includes a global accessible toast system for transient feedback:
 - Use `useToast()` in client components to trigger `showSuccess(...)` and `showError(...)`.
 - Success messages announce through a polite `aria-live` region.
 - Error messages announce through an assertive `aria-live` region.
+- **Viewport overflow protection**: at most **4 toasts** are visible at once (`MAX_VISIBLE_TOASTS = 4`). When a new toast would exceed this cap, the oldest visible toast is evicted and its auto-dismiss timer is cancelled before the new toast is appended. The live-region announcer always reflects the newest toast.
 
 ## Session safety
 
@@ -88,6 +89,38 @@ Example:
 </WalletProvider>
 ```
 
+## Wallet integration
+
+The app connects to the **Freighter** Stellar wallet extension via [`@stellar/freighter-api`](https://github.com/stellar/freighter).
+
+### Setup
+
+1. Install the [Freighter browser extension](https://freighter.app) for Chrome or Firefox.
+2. Create or import a Stellar wallet in Freighter.
+3. The app detects Freighter automatically — no API keys or configuration required.
+
+### How it works
+
+- `WalletProvider` (in `src/contexts/WalletContext.tsx`) manages the connection lifecycle.
+- `connect()` checks for Freighter availability (`window.freighter`), calls `requestAccess()` to prompt the user, and persists the `G...` public key in `localStorage`.
+- On page refresh, the address is rehydrated from `localStorage` using the same pattern as `PreferencesProvider` (`src/lib/safeStorage.ts`).
+- `disconnect()` clears the address from state and removes it from storage.
+- The `useWallet()` hook exposes `{ address, isConnecting, error, connect, disconnect }`.
+
+### Error messages
+
+| Condition | Message |
+|-----------|---------|
+| Freighter not installed | `Freighter wallet is not installed. Please install the Freighter browser extension.` |
+| User rejected the prompt | `User rejected the connection request.` |
+| Unexpected failure | Propagated from the underlying error |
+
+### Security
+
+- Only the Stellar public key (`G...`) is persisted in `localStorage` — no private keys, seeds, or personal information.
+- The public key is never logged to the console or sent to external services.
+- All `window` / wallet access is guarded for SSR (Next.js App Router).
+
 ## Crawling and sitemap
 
 To ensure the app provides first-class support for search engine crawlers using Next.js metadata routes.
@@ -104,6 +137,25 @@ The root layout exports typed Next.js metadata in [`src/app/layout.tsx`](src/app
 - **Preview image**: the static social card lives at [`public/og-preview.svg`](public/og-preview.svg) and is referenced with a relative path so Next.js can resolve it correctly from `metadataBase`.
 - **Copy guidance**: keep future preview copy aligned with [`docs/COPYWRITING_GUIDE.md`](docs/COPYWRITING_GUIDE.md) and avoid absolute guarantees or technical jargon.
 
+## Environment variables
+
+This app uses Next.js environment variables. Public variables must be prefixed with `NEXT_PUBLIC_` and are exposed to browser JavaScript. Secrets must never be stored in `NEXT_PUBLIC_` variables.
+
+- `NEXT_PUBLIC_SITE_URL` (required in production)
+  - Used by `src/app/layout.tsx`, `src/app/robots.ts`, and `src/app/sitemap.ts`.
+  - Provides the canonical site URL for `metadataBase`, Open Graph/Twitter previews, generated `robots.txt`, and `sitemap.xml` entries.
+  - If unset, the app falls back to `http://localhost:3000` for local development.
+
+- `NEXT_PUBLIC_WALLET_RPC_URL` (reserved)
+  - Reserved for future wallet integration and RPC provider configuration.
+  - Do not store private keys or secrets here; this is only for public JSON-RPC endpoints.
+
+- `NEXT_PUBLIC_WALLET_CONNECT_RELAY` (reserved)
+  - Reserved for future WalletConnect relay support.
+  - Example relay URL: `wss://relay.walletconnect.com`.
+
+The repo includes a sample file at [`.env.example`](.env.example) with the current public config and reserved future variables.
+
 ## PWA / Web Manifest
 
 The app exposes a [Web App Manifest](https://developer.mozilla.org/en-US/docs/Web/Manifest) at `/manifest.webmanifest` via `src/app/manifest.ts`, enabling users to install TalentTrust on their device home screen with proper branding.
@@ -117,39 +169,6 @@ The app exposes a [Web App Manifest](https://developer.mozilla.org/en-US/docs/We
   > **Note**: The PNG files are blue-square placeholders generated for development. A designer should replace them with branded raster icons before production deployment.
 
 The manifest is automatically linked via the root layout metadata (`src/app/layout.tsx`), which also declares the favicon and Apple touch icon.
-
-### Environment variable
-
-Set `NEXT_PUBLIC_SITE_URL` in `.env` or your deployment environment to point to your production domain. Falls back to `http://localhost:3000` when not set.
-
-Example:
-
-```bash
-# .env.local
-NEXT_PUBLIC_SITE_URL=https://talenttrust.app
-```
-
-Example:
-
-```tsx
-'use client';
-
-import { useToast } from '@/components/toast/toast-provider';
-
-export function ReleaseButton() {
-  const { showSuccess, showError } = useToast();
-
-  async function handleRelease() {
-    try {
-      showSuccess({ title: 'Milestone released' });
-    } catch {
-      showError({ title: 'Wallet not connected' });
-    }
-  }
-
-  return <button onClick={handleRelease}>Release milestone</button>;
-}
-```
 
 ## Stellar address helpers
 

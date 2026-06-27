@@ -11,9 +11,37 @@ This project sets HTTP response headers via the `headers()` function in
 | `X-Frame-Options` | `DENY` | Prevents clickjacking (legacy; also covered by CSP `frame-ancestors`) |
 | `X-Content-Type-Options` | `nosniff` | Stops MIME-type sniffing |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` | Sends only the origin (not full URL) on cross-origin nav |
+| `Cross-Origin-Opener-Policy` | `same-origin` | Isolates the top-level browsing context from cross-origin windows and popups |
+| `Cross-Origin-Resource-Policy` | `same-origin` | Stops other origins from embedding or hotlinking app-served resources |
 | `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` | Enforces HTTPS for 1 year (ignored by browsers on localhost per RFC 6797) |
 | `X-Permitted-Cross-Domain-Policies` | `none` | Blocks Adobe Flash/PDF cross-domain requests (bonus hardening) |
 | `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` | Disables sensitive browser features app-wide (bonus hardening) |
+
+## Cross-origin hardening notes
+
+`Referrer-Policy: strict-origin-when-cross-origin` is intentionally retained.
+It preserves same-origin analytics/debuggability while reducing cross-origin
+URL leakage to the origin only.
+
+`Cross-Origin-Opener-Policy: same-origin` narrows the browsing-context group to
+same-origin documents. That reduces the cross-origin window surface area and is
+safe for the current app because the repo does not show popup-based auth or
+cross-origin window messaging requirements.
+
+`Cross-Origin-Resource-Policy: same-origin` is the strongest safe default for
+this app today. The project serves its own icons, manifest, and social preview
+assets from the same origin, and the repo does not indicate any intentional
+cross-site embedding or third-party hotlinking requirement.
+
+If the app later adds popup auth, same-site asset sharing, or third-party
+embeds, revisit COOP/CORP together rather than weakening only one header.
+
+## About Subresource Integrity
+
+This hardening pass is limited to response headers in `next.config.js`. It does
+not add HTML `integrity` attributes or asset-pipeline Subresource Integrity
+(SRI) generation for scripts/styles. That would be a separate change with
+different build and rendering implications.
 
 ## Content-Security-Policy
 
