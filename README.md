@@ -62,6 +62,10 @@ Providers are wired in `src/app/layout.tsx` with a specific nesting order:
 
 Shared components live in `src/components/` (e.g., `src/components/toast/`). Shared utilities and domain types live in `src/lib/` and `src/types/`.
 
+### Data Model & Persistence
+
+The application relies on a client-side persistence layer for storing contracts and milestones. For a complete overview of the API, `AppData` shape, and update operations, see the [Persistence API and Data Model Guide](docs/data-model.md).
+
 ## Toast notifications
 
 The app includes a global accessible toast system for transient feedback:

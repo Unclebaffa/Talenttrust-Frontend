@@ -6,6 +6,9 @@
  * Provides synchronous read/write access to Contract and Milestone records
  * stored in the browser's localStorage under a single namespaced key.
  *
+ * For a complete overview of the API, the AppData shape, and update operations,
+ * please refer to `docs/data-model.md`.
+ *
  * Design principles:
  * - **Pure & synchronous** — no React dependencies; safe to call from any context.
  * - **SSR-safe** — guards every storage access with a `typeof window` check so
