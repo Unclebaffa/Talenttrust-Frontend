@@ -14,18 +14,19 @@ export type ToastDensity = 'relaxed' | 'compact';
 function safeCurrencyFormat(
   amount: number,
   currency: string,
-  options: Intl.NumberFormatOptions = {}
+  options: Intl.NumberFormatOptions & { locale?: string } = {}
 ): string {
   const defaultCurrency = 'USD';
+  const { locale = 'en-US', ...fmtOptions } = options;
   try {
-    return new Intl.NumberFormat(options.locale || 'en-US', {
-      ...options,
+    return new Intl.NumberFormat(locale, {
+      ...fmtOptions,
       style: 'currency',
       currency,
     }).format(amount);
   } catch (e) {
-    return new Intl.NumberFormat(options.locale || 'en-US', {
-      ...options,
+    return new Intl.NumberFormat(locale, {
+      ...fmtOptions,
       style: 'currency',
       currency: defaultCurrency,
     }).format(amount);

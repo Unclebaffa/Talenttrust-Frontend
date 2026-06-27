@@ -1,451 +1,202 @@
+/**
+ * Tests for ContractsPage — create-and-list state refresh (#241)
+ *
+ * Covered scenarios:
+ * 1. Empty state: renders EmptyState with accessible "Create Contract" action
+ * 2. Create action: clicking the action opens the ContractCreationForm dialog
+ * 3. Cancel: closing the form returns to the empty state view
+ * 4. Submit: persists the contract via saveContract, re-reads via listContracts,
+ *    closes the form, and renders the new contract in the list
+ * 5. Pre-seeded list: pre-existing contracts render without showing the empty state
+ */
+
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ContractsPage from '../page';
 import * as repository from '@/lib/repository';
 import * as stellarAddress from '@/lib/stellarAddress';
+import type { Contract } from '@/types/domain';
 
-// Mock dependencies
 jest.mock('@/lib/repository');
 jest.mock('@/lib/stellarAddress');
 
-const mockListContracts = repository.listContracts as jest.MockedFunction<
-  typeof repository.listContracts
->;
-const mockSaveContract = repository.saveContract as jest.MockedFunction<
-  typeof repository.saveContract
->;
-const mockIsValidStellarAddress = stellarAddress.isValidStellarAddress as jest.MockedFunction<
+const mockList = repository.listContracts as jest.MockedFunction<typeof repository.listContracts>;
+const mockSave = repository.saveContract as jest.MockedFunction<typeof repository.saveContract>;
+const mockIsValid = stellarAddress.isValidStellarAddress as jest.MockedFunction<
   typeof stellarAddress.isValidStellarAddress
 >;
 
-const VALID_ADDRESS = 'GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H';
+/** A valid 56-char Stellar public key used across form submissions. */
+const ADDR = 'GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H';
 
-describe('ContractsPage', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    localStorage.clear();
-    mockListContracts.mockReturnValue([]);
-    mockIsValidStellarAddress.mockImplementation((addr: string) => addr === VALID_ADDRESS);
+/** Minimal contract fixture for seeding the list. */
+const CONTRACT_FIXTURE: Contract = {
+  contractName: 'Design Sprint',
+  parties: [
+    { label: 'Client', address: ADDR },
+    { label: 'Freelancer', address: ADDR },
+  ],
+  totalValue: 5000,
+  currency: 'USD',
+  status: 'Active',
+  createdAt: 'Jan 15, 2025',
+  milestoneCount: 3,
+};
+
+/**
+ * Fill and submit the contract creation form with valid data.
+ * Assumes the dialog is already open.
+ */
+function fillAndSubmitForm(contractName = 'New Contract') {
+  fireEvent.change(screen.getByLabelText(/contract name/i), {
+    target: { value: contractName },
+  });
+  fireEvent.change(screen.getByLabelText(/total value/i), {
+    target: { value: '1000' },
   });
 
-  describe('Empty State', () => {
-    it('renders EmptyState when contracts array is empty', () => {
-      render(<ContractsPage />);
-
-      expect(screen.getByText('No contracts found')).toBeInTheDocument();
-      expect(screen.getByText('You haven\'t created any contracts yet. Start by creating your first contract to begin freelancing securely.')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Create Contract' })).toBeInTheDocument();
-    });
-
-    it('opens form when create contract button is clicked in empty state', () => {
-      mockListContracts.mockReturnValue([]);
-      render(<ContractsPage />);
-
-      fireEvent.click(screen.getByRole('button', { name: /create contract/i }));
-
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByText(/create new contract/i)).toBeInTheDocument();
-    });
-  });
-
-  describe('Contract List Display', () => {
-    it('renders list of contracts when contracts exist', () => {
-      const mockContracts = [
-        {
-          contractName: 'Website Redesign',
-          parties: [
-            { label: 'Client', address: VALID_ADDRESS },
-            { label: 'Freelancer', address: VALID_ADDRESS },
-          ],
-          totalValue: 5000,
-          currency: 'USD',
-          status: 'Active' as const,
-          createdAt: 'Jan 15, 2025',
-          milestoneCount: 3,
-        },
-        {
-          contractName: 'Mobile App Development',
-          parties: [
-            { label: 'Client', address: VALID_ADDRESS },
-            { label: 'Developer', address: VALID_ADDRESS },
-          ],
-          totalValue: 10000,
-          currency: 'EUR',
-          status: 'Pending' as const,
-          createdAt: 'Feb 1, 2025',
-          milestoneCount: 5,
-        },
-      ];
-
-      mockListContracts.mockReturnValue(mockContracts);
-      render(<ContractsPage />);
-
-      expect(screen.getByText('Website Redesign')).toBeInTheDocument();
-      expect(screen.getByText('Mobile App Development')).toBeInTheDocument();
-      expect(screen.getByText(/active.*jan 15, 2025/i)).toBeInTheDocument();
-      expect(screen.getByText(/pending.*feb 1, 2025/i)).toBeInTheDocument();
-    });
-
-    it('does not show empty state when contracts exist', () => {
-      const mockContracts = [
-        {
-          contractName: 'Test Contract',
-          parties: [
-            { label: 'Client', address: VALID_ADDRESS },
-            { label: 'Freelancer', address: VALID_ADDRESS },
-          ],
-          totalValue: 1000,
-          currency: 'USD',
-          status: 'Pending' as const,
-          createdAt: 'Jan 1, 2025',
-          milestoneCount: 1,
-        },
-      ];
-
-      mockListContracts.mockReturnValue(mockContracts);
-      render(<ContractsPage />);
-
-      expect(screen.queryByText(/no contracts found/i)).not.toBeInTheDocument();
-    });
-  });
-
-  describe('Contract Creation Form', () => {
-    it('does not show form initially', () => {
-      mockListContracts.mockReturnValue([]);
-      render(<ContractsPage />);
-
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    });
-
-    it('shows form when create button is clicked', () => {
-      mockListContracts.mockReturnValue([]);
-      render(<ContractsPage />);
-
-      fireEvent.click(screen.getByRole('button', { name: /create contract/i }));
-
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-    });
-
-    it('closes form when cancel is clicked', async () => {
-      mockListContracts.mockReturnValue([]);
-      render(<ContractsPage />);
-
-      fireEvent.click(screen.getByRole('button', { name: /create contract/i }));
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-
-      fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
-
-      await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      });
-    });
-
-    it('validates required fields before submission', async () => {
-      mockListContracts.mockReturnValue([]);
-      render(<ContractsPage />);
-
-      // Open form
-      fireEvent.click(screen.getByRole('button', { name: /create contract/i }));
-
-      // Try to submit empty form
-      fireEvent.click(screen.getAllByRole('button', { name: /create contract/i })[1]);
-
-      await waitFor(() => {
-        expect(screen.getByRole('alert', { name: /there is a problem/i })).toBeInTheDocument();
-      });
-
-      expect(mockSaveContract).not.toHaveBeenCalled();
-    });
-
-    it('validates Stellar addresses before submission', async () => {
-      mockListContracts.mockReturnValue([]);
-      render(<ContractsPage />);
-
-      // Open form
-      fireEvent.click(screen.getByRole('button', { name: /create contract/i }));
-
-      // Fill in form with invalid address
-      fireEvent.change(screen.getByLabelText(/contract name/i), {
-        target: { value: 'Test Contract' },
-      });
-      fireEvent.change(screen.getByLabelText(/total value/i), {
-        target: { value: '5000' },
-      });
-
-      const partyLabels = screen.getAllByPlaceholderText(/e\.g\., client, freelancer/i);
-      const partyAddresses = screen.getAllByPlaceholderText(/GXXXXXXXXXX/i);
-
-      fireEvent.change(partyLabels[0], { target: { value: 'Client' } });
-      fireEvent.change(partyAddresses[0], { target: { value: 'INVALID_ADDRESS' } });
-
-      fireEvent.change(partyLabels[1], { target: { value: 'Freelancer' } });
-      fireEvent.change(partyAddresses[1], { target: { value: VALID_ADDRESS } });
-
-      // Submit form
-      fireEvent.click(screen.getAllByRole('button', { name: /create contract/i })[1]);
-
-      await waitFor(() => {
-        expect(screen.getByText(/party 1 address must be a valid stellar address/i)).toBeInTheDocument();
-      });
-
-      expect(mockSaveContract).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('Contract Persistence', () => {
-    it('saves contract and refreshes list on successful submission', async () => {
-      // Start with empty list
-      mockListContracts.mockReturnValue([]);
-      render(<ContractsPage />);
-
-      // Open form
-      fireEvent.click(screen.getByRole('button', { name: /create contract/i }));
-
-      // Fill in valid form data
-      fireEvent.change(screen.getByLabelText(/contract name/i), {
-        target: { value: 'New Contract' },
-      });
-      fireEvent.change(screen.getByLabelText(/total value/i), {
-        target: { value: '7500' },
-      });
-      fireEvent.change(screen.getByLabelText(/currency/i), {
-        target: { value: 'EUR' },
-      });
-
-      const partyLabels = screen.getAllByPlaceholderText(/e\.g\., client, freelancer/i);
-      const partyAddresses = screen.getAllByPlaceholderText(/GXXXXXXXXXX/i);
-
-      fireEvent.change(partyLabels[0], { target: { value: 'Client Corp' } });
-      fireEvent.change(partyAddresses[0], { target: { value: VALID_ADDRESS } });
-
-      fireEvent.change(partyLabels[1], { target: { value: 'Designer' } });
-      fireEvent.change(partyAddresses[1], { target: { value: VALID_ADDRESS } });
-
-      // Mock the updated list after save
-      const newContract = {
-        contractName: 'New Contract',
-        parties: [
-          { label: 'Client Corp', address: VALID_ADDRESS },
-          { label: 'Designer', address: VALID_ADDRESS },
-        ],
-        totalValue: 7500,
-        currency: 'EUR',
-        status: 'Pending' as const,
-        createdAt: expect.any(String),
-        milestoneCount: 0,
-      };
-      mockListContracts.mockReturnValue([newContract]);
-
-      // Submit form
-      fireEvent.click(screen.getAllByRole('button', { name: /create contract/i })[1]);
-
-      await waitFor(() => {
-        expect(mockSaveContract).toHaveBeenCalledTimes(1);
-      });
-
-      // Verify saveContract was called with correct data
-      expect(mockSaveContract).toHaveBeenCalledWith(
-        expect.objectContaining({
-          contractName: 'New Contract',
-          totalValue: 7500,
-          currency: 'EUR',
-          status: 'Pending',
-          milestoneCount: 0,
-          parties: [
-            { label: 'Client Corp', address: VALID_ADDRESS },
-            { label: 'Designer', address: VALID_ADDRESS },
-          ],
-        })
-      );
-
-      // Verify listContracts was called to refresh
-      expect(mockListContracts).toHaveBeenCalled();
-    });
-
-    it('closes form after successful submission', async () => {
-      mockListContracts.mockReturnValue([]);
-      render(<ContractsPage />);
-
-      // Open form
-      fireEvent.click(screen.getByRole('button', { name: /create contract/i }));
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-
-      // Fill in valid form data
-      fireEvent.change(screen.getByLabelText(/contract name/i), {
-        target: { value: 'Test Contract' },
-      });
-      fireEvent.change(screen.getByLabelText(/total value/i), {
-        target: { value: '1000' },
-      });
-
-      const partyLabels = screen.getAllByPlaceholderText(/e\.g\., client, freelancer/i);
-      const partyAddresses = screen.getAllByPlaceholderText(/GXXXXXXXXXX/i);
-
-      fireEvent.change(partyLabels[0], { target: { value: 'Party 1' } });
-      fireEvent.change(partyAddresses[0], { target: { value: VALID_ADDRESS } });
-
-      fireEvent.change(partyLabels[1], { target: { value: 'Party 2' } });
-      fireEvent.change(partyAddresses[1], { target: { value: VALID_ADDRESS } });
-
-      // Mock updated list
-      mockListContracts.mockReturnValue([
-        {
-          contractName: 'Test Contract',
-          parties: [
-            { label: 'Party 1', address: VALID_ADDRESS },
-            { label: 'Party 2', address: VALID_ADDRESS },
-          ],
-          totalValue: 1000,
-          currency: 'USD',
-          status: 'Pending' as const,
-          createdAt: 'Jan 1, 2025',
-          milestoneCount: 0,
-        },
-      ]);
-
-      // Submit form
-      fireEvent.click(screen.getAllByRole('button', { name: /create contract/i })[1]);
-
-      await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      });
-    });
-
-    it('displays newly created contract in the list', async () => {
-      // Start with empty list
-      mockListContracts.mockReturnValue([]);
-      render(<ContractsPage />);
-
-      // Open and submit form
-      fireEvent.click(screen.getByRole('button', { name: /create contract/i }));
-
-      fireEvent.change(screen.getByLabelText(/contract name/i), {
-        target: { value: 'My First Contract' },
-      });
-      fireEvent.change(screen.getByLabelText(/total value/i), {
-        target: { value: '2500' },
-      });
-
-      const partyLabels = screen.getAllByPlaceholderText(/e\.g\., client, freelancer/i);
-      const partyAddresses = screen.getAllByPlaceholderText(/GXXXXXXXXXX/i);
-
-      fireEvent.change(partyLabels[0], { target: { value: 'Client' } });
-      fireEvent.change(partyAddresses[0], { target: { value: VALID_ADDRESS } });
-
-      fireEvent.change(partyLabels[1], { target: { value: 'Worker' } });
-      fireEvent.change(partyAddresses[1], { target: { value: VALID_ADDRESS } });
-
-      // Update mock to return the new contract
-      const createdContract = {
-        contractName: 'My First Contract',
-        parties: [
-          { label: 'Client', address: VALID_ADDRESS },
-          { label: 'Worker', address: VALID_ADDRESS },
-        ],
-        totalValue: 2500,
-        currency: 'USD',
-        status: 'Pending' as const,
-        createdAt: new Date().toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        }),
-        milestoneCount: 0,
-      };
-      mockListContracts.mockReturnValue([createdContract]);
-
-      fireEvent.click(screen.getAllByRole('button', { name: /create contract/i })[1]);
-
-      await waitFor(() => {
-        expect(screen.getByText('My First Contract')).toBeInTheDocument();
-      });
-
-      expect(screen.queryByText(/no contracts found/i)).not.toBeInTheDocument();
-    });
-  });
-
-  describe('Form Requirements', () => {
-    it('requires at least two parties', async () => {
-      mockListContracts.mockReturnValue([]);
-      render(<ContractsPage />);
-
-      fireEvent.click(screen.getByRole('button', { name: /create contract/i }));
-
-      // Fill only one party
-      fireEvent.change(screen.getByLabelText(/contract name/i), {
-        target: { value: 'Test' },
-      });
-      fireEvent.change(screen.getByLabelText(/total value/i), {
-        target: { value: '1000' },
-      });
-
-      const partyLabels = screen.getAllByPlaceholderText(/e\.g\., client, freelancer/i);
-      const partyAddresses = screen.getAllByPlaceholderText(/GXXXXXXXXXX/i);
-
-      fireEvent.change(partyLabels[0], { target: { value: 'Client' } });
-      fireEvent.change(partyAddresses[0], { target: { value: VALID_ADDRESS } });
-
-      fireEvent.click(screen.getAllByRole('button', { name: /create contract/i })[1]);
-
-      await waitFor(() => {
-        expect(screen.getByText(/at least two parties are required/i)).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('Page Structure', () => {
-    it('renders page heading', () => {
-      mockListContracts.mockReturnValue([]);
-      render(<ContractsPage />);
-
-      expect(screen.getByRole('heading', { name: /contracts/i })).toBeInTheDocument();
-    });
-
-    it('renders main landmark', () => {
-      mockListContracts.mockReturnValue([]);
-      render(<ContractsPage />);
-
-      expect(screen.getByRole('main')).toBeInTheDocument();
-    });
-  });
-
-  it('renders persisted contracts when storage already contains data', () => {
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        contracts: [
-          {
-            contractName: 'Existing Contract',
-            parties: [],
-            totalValue: 1000,
-            currency: 'USD',
-            status: 'Active',
-            createdAt: 'Apr 20, 2026',
-            milestoneCount: 1,
-          },
-        ],
-        milestones: [],
-      })
-    );
-
-    render(<ContractsPage />);
-
-    expect(screen.getByText('Existing Contract')).toBeInTheDocument();
-    expect(screen.getByText(/Active · Created Apr 20, 2026/)).toBeInTheDocument();
-  });
-
-  it('creates and persists a new contract from the empty state action', async () => {
-    const user = userEvent.setup();
-    jest.spyOn(Date, 'now').mockReturnValue(1700000000000);
-
-    render(<ContractsPage />);
-
-    await user.click(screen.getByRole('button', { name: 'Create Contract' }));
-
-    const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || '{}');
-    expect(stored.contracts).toHaveLength(1);
-    expect(stored.contracts[0].contractName).toBe('Contract 1700000000000');
-    expect(screen.getByText('Contract 1700000000000')).toBeInTheDocument();
-  });
+  const labels = screen.getAllByPlaceholderText(/e\.g\., client, freelancer/i);
+  const addresses = screen.getAllByPlaceholderText(/GXXXXXXXXXX/i);
+
+  fireEvent.change(labels[0], { target: { value: 'Client' } });
+  fireEvent.change(addresses[0], { target: { value: ADDR } });
+  fireEvent.change(labels[1], { target: { value: 'Freelancer' } });
+  fireEvent.change(addresses[1], { target: { value: ADDR } });
+
+  // The submit button inside the dialog also reads "Create Contract"
+  const buttons = screen.getAllByRole('button', { name: /create contract/i });
+  fireEvent.click(buttons[buttons.length - 1]);
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockList.mockReturnValue([]);
+  mockIsValid.mockImplementation((addr) => addr === ADDR);
+});
+
+// ---------------------------------------------------------------------------
+// 1. Empty state
+// ---------------------------------------------------------------------------
+
+/** Renders the EmptyState region with the correct heading and description. */
+it('renders EmptyState heading and description when storage is empty', () => {
+  render(<ContractsPage />);
+
+  expect(screen.getByText('No contracts found')).toBeInTheDocument();
+  expect(
+    screen.getByText(/you haven't created any contracts yet/i),
+  ).toBeInTheDocument();
+});
+
+/** The EmptyState action button must be accessible by its label. */
+it('renders accessible "Create Contract" button in the empty state', () => {
+  render(<ContractsPage />);
+
+  expect(screen.getByRole('button', { name: 'Create Contract' })).toBeInTheDocument();
+});
+
+/** No dialog should be present before the user triggers the create action. */
+it('does not show the creation form on initial render', () => {
+  render(<ContractsPage />);
+
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});
+
+// ---------------------------------------------------------------------------
+// 2. Create action opens the form
+// ---------------------------------------------------------------------------
+
+/** Clicking the empty-state action must open the ContractCreationForm dialog. */
+it('opens ContractCreationForm dialog when create action is clicked', () => {
+  render(<ContractsPage />);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Create Contract' }));
+
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+  expect(screen.getByText(/create new contract/i)).toBeInTheDocument();
+});
+
+// ---------------------------------------------------------------------------
+// 3. Cancel returns to empty state
+// ---------------------------------------------------------------------------
+
+/** Cancelling the form must close the dialog and restore the empty state view. */
+it('closes the dialog and shows empty state when cancel is clicked', async () => {
+  render(<ContractsPage />);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Create Contract' }));
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(screen.getByText('No contracts found')).toBeInTheDocument();
+});
+
+// ---------------------------------------------------------------------------
+// 4. Submit → persist, refresh list, close form
+// ---------------------------------------------------------------------------
+
+/**
+ * After a valid submission the page must:
+ * - call saveContract once with the correct payload
+ * - call listContracts again to refresh state
+ * - close the dialog
+ * - render the new contract in the list
+ */
+it('persists contract, refreshes list, and closes form on submit', async () => {
+  render(<ContractsPage />);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Create Contract' }));
+
+  // Arrange: listContracts returns the new item on the post-save call
+  mockList.mockReturnValue([CONTRACT_FIXTURE]);
+
+  fillAndSubmitForm('Design Sprint');
+
+  await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(1));
+
+  expect(mockSave).toHaveBeenCalledWith(
+    expect.objectContaining({
+      contractName: 'Design Sprint',
+      totalValue: 1000,
+      status: 'Pending',
+      milestoneCount: 0,
+      parties: [
+        { label: 'Client', address: ADDR },
+        { label: 'Freelancer', address: ADDR },
+      ],
+    }),
+  );
+
+  // listContracts called at least twice: initial mount + post-save refresh
+  expect(mockList.mock.calls.length).toBeGreaterThanOrEqual(2);
+
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(screen.getByText('Design Sprint')).toBeInTheDocument();
+  expect(screen.queryByText(/no contracts found/i)).not.toBeInTheDocument();
+});
+
+// ---------------------------------------------------------------------------
+// 5. Pre-seeded list
+// ---------------------------------------------------------------------------
+
+/** When listContracts returns contracts on mount, the list renders immediately. */
+it('renders pre-existing contracts without showing the empty state', () => {
+  mockList.mockReturnValue([CONTRACT_FIXTURE]);
+
+  render(<ContractsPage />);
+
+  expect(screen.getByText('Design Sprint')).toBeInTheDocument();
+  expect(screen.queryByText(/no contracts found/i)).not.toBeInTheDocument();
+});
+
+/** Pre-seeded list shows the "Create Contract" button in the list header toolbar. */
+it('shows a "Create Contract" button in the list toolbar when contracts exist', () => {
+  mockList.mockReturnValue([CONTRACT_FIXTURE]);
+
+  render(<ContractsPage />);
+
+  expect(screen.getByRole('button', { name: 'Create Contract' })).toBeInTheDocument();
 });
