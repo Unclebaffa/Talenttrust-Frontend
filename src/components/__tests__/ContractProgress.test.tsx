@@ -69,9 +69,14 @@ describe('ContractProgress', () => {
       expect(screen.getByRole('heading', { name: /escrow progress/i })).toBeInTheDocument();
     });
 
-    it('renders the progressbar element', () => {
-      render(<ContractProgress milestones={[]} />);
+    it('renders a progressbar element when milestones are present', () => {
+      render(<ContractProgress milestones={[makePendingMilestone()]} />);
       expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    });
+
+    it('does not render a progressbar when milestones array is empty', () => {
+      render(<ContractProgress milestones={[]} />);
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     });
 
     it('renders "Paid" and "Outstanding" fund cards', () => {
@@ -82,23 +87,56 @@ describe('ContractProgress', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Zero milestones
+  // Empty state (totalCount === 0)
   // -------------------------------------------------------------------------
 
-  describe('zero milestones', () => {
-    it('shows 0 / 0 completion ratio', () => {
+  describe('empty state', () => {
+    it('shows "No milestones yet" message when milestones array is empty', () => {
       render(<ContractProgress milestones={[]} />);
-      expect(screen.getByText('0 / 0')).toBeInTheDocument();
+      expect(screen.getByText('No milestones yet')).toBeInTheDocument();
     });
 
-    it('sets aria-valuenow to 0 on the progressbar', () => {
+    it('does not render the "Milestones completed" label when empty', () => {
       render(<ContractProgress milestones={[]} />);
-      expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0');
+      expect(screen.queryByText(/milestones completed/i)).not.toBeInTheDocument();
     });
 
-    it('displays $0.00 for both paid and outstanding when milestones is empty', () => {
+    it('does not render the "0 / 0" completion ratio when empty', () => {
       render(<ContractProgress milestones={[]} />);
-      // Both paid and outstanding should render 0
+      expect(screen.queryByText('0 / 0')).not.toBeInTheDocument();
+    });
+
+    it('does not render a progressbar when empty', () => {
+      render(<ContractProgress milestones={[]} />);
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    });
+
+    it('still renders financial cards showing zero values when empty', () => {
+      render(<ContractProgress milestones={[]} />);
+      expect(screen.getByText(/^Paid$/i)).toBeInTheDocument();
+      expect(screen.getByText(/^Outstanding$/i)).toBeInTheDocument();
+      const zeroes = screen.getAllByText('USD 0.00');
+      expect(zeroes).toHaveLength(2);
+    });
+
+    it('renders the section heading even when empty', () => {
+      render(<ContractProgress milestones={[]} />);
+      expect(screen.getByRole('heading', { name: /escrow progress/i })).toBeInTheDocument();
+    });
+
+    it('does not throw for an empty milestones array', () => {
+      expect(() => render(<ContractProgress milestones={[]} />)).not.toThrow();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Zero milestones — legacy alias kept for back-compat with page-level tests
+  // (the component now renders the empty-state branch, not a 0% bar)
+  // -------------------------------------------------------------------------
+
+  describe('zero milestones (legacy coverage)', () => {
+    it('displays USD 0.00 for both paid and outstanding when milestones is empty', () => {
+      render(<ContractProgress milestones={[]} />);
       const zeroes = screen.getAllByText('USD 0.00');
       expect(zeroes).toHaveLength(2);
     });
@@ -233,8 +271,10 @@ describe('ContractProgress', () => {
     });
 
     it('aria-valuenow is 0 for zero milestones', () => {
+      // When milestones is empty the progressbar is not rendered at all;
+      // this test confirms the absence rather than a 0 value.
       render(<ContractProgress milestones={[]} />);
-      expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0');
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     });
   });
 
