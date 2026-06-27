@@ -25,6 +25,8 @@ const MockComponent = () => {
   );
 };
 
+const MOCK_ADDRESS = 'GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H';
+
 describe('WalletContext persistence', () => {
   const mockStorage = require('@/lib/safeStorage');
 
@@ -32,6 +34,11 @@ describe('WalletContext persistence', () => {
     jest.clearAllMocks();
     jest.useFakeTimers();
     localStorage.clear();
+    // Provide a working requestAccess global that connect() calls
+    (global as Record<string, unknown>).requestAccess = jest.fn().mockResolvedValue({
+      address: MOCK_ADDRESS,
+      error: null,
+    });
     Object.defineProperty(window, 'freighter', {
       value: true,
       writable: true,
@@ -40,9 +47,7 @@ describe('WalletContext persistence', () => {
   });
 
   afterEach(() => {
-    act(() => {
-      jest.runOnlyPendingTimers();
-    });
+    delete (global as Record<string, unknown>).requestAccess;
     jest.useRealTimers();
   });
 
@@ -70,12 +75,10 @@ describe('WalletContext persistence', () => {
     await act(async () => {
       jest.advanceTimersByTime(1000);
     });
-    expect(screen.getByTestId('address')).toHaveTextContent(
-      '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'
-    );
+    expect(screen.getByTestId('address')).toHaveTextContent(MOCK_ADDRESS);
     expect(mockStorage.setItem).toHaveBeenCalledWith(
       'wallet_connected_address',
-      '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'
+      MOCK_ADDRESS
     );
   });
 
