@@ -14,8 +14,16 @@ jest.mock('@/lib/safeStorage', () => ({
   getItem: jest.fn(),
   setItem: jest.fn(),
   removeItem: jest.fn(),
-  checkStorageAvailability: jest.fn().mockReturnValue(true),
   resetCache: jest.fn(),
+  safeStorage: {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
+  },
+}));
+
+jest.mock('@stellar/freighter-api', () => ({
+  requestAccess: jest.fn(),
 }));
 
 const MockComponent = () => {
@@ -29,18 +37,17 @@ const MockComponent = () => {
   );
 };
 
-const MOCK_ADDRESS = 'GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H';
+const { getItem, setItem, removeItem, resetCache } = require('@/lib/safeStorage');
+const { requestAccess } = require('@stellar/freighter-api');
 
 describe('WalletContext persistence', () => {
-  const mockStorage = require('@/lib/safeStorage');
-
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
     localStorage.clear();
-    // Provide a working requestAccess global that connect() calls
-    (global as Record<string, unknown>).requestAccess = jest.fn().mockResolvedValue({
-      address: MOCK_ADDRESS,
+    (requestAccess as jest.Mock).mockReset();
+    (requestAccess as jest.Mock).mockResolvedValue({
+      address: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
       error: null,
     });
     Object.defineProperty(window, 'freighter', {
@@ -120,18 +127,18 @@ describe('WalletContext persistence', () => {
 
       expect(screen.getByTestId('address')).toHaveTextContent('No address');
   test('rehydrates address from safeStorage on mount', () => {
-    (mockStorage.getItem as jest.Mock).mockReturnValue('0xABC');
+    (getItem as jest.Mock).mockReturnValue('0xABC');
     render(
       <WalletProvider idleTimeout={0}>
         <MockComponent />
       </WalletProvider>
     );
     expect(screen.getByTestId('address')).toHaveTextContent('0xABC');
-    expect(mockStorage.getItem).toHaveBeenCalledWith('wallet_connected_address');
+    expect(getItem).toHaveBeenCalledWith('wallet_connected_address');
   });
 
   test('connect stores address in safeStorage', async () => {
-    (mockStorage.getItem as jest.Mock).mockReturnValue(null);
+    (getItem as jest.Mock).mockReturnValue(null);
     render(
       <WalletProvider idleTimeout={0}>
         <MockComponent />
@@ -143,8 +150,10 @@ describe('WalletContext persistence', () => {
     await act(async () => {
       jest.advanceTimersByTime(1000);
     });
-    expect(screen.getByTestId('address')).toHaveTextContent(MOCK_ADDRESS);
-    expect(mockStorage.setItem).toHaveBeenCalledWith(
+    expect(screen.getByTestId('address')).toHaveTextContent(
+      '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'
+    );
+    expect(setItem).toHaveBeenCalledWith(
       'wallet_connected_address',
       MOCK_ADDRESS
     );
@@ -232,7 +241,7 @@ describe('WalletContext persistence', () => {
       // Should still be connected
       expect(screen.getByTestId('address')).toHaveTextContent(MOCKED_STELLAR_ADDRESS);
   test('disconnect clears address from safeStorage', async () => {
-    (mockStorage.getItem as jest.Mock).mockReturnValue(null);
+    (getItem as jest.Mock).mockReturnValue(null);
     render(
       <WalletProvider idleTimeout={0}>
         <MockComponent />
@@ -248,11 +257,11 @@ describe('WalletContext persistence', () => {
       screen.getByText('Disconnect').click();
     });
     expect(screen.getByTestId('address')).toHaveTextContent('null');
-    expect(mockStorage.removeItem).toHaveBeenCalledWith('wallet_connected_address');
+    expect(removeItem).toHaveBeenCalledWith('wallet_connected_address');
   });
 
   test('idle timeout disconnects and clears storage', async () => {
-    (mockStorage.getItem as jest.Mock).mockReturnValue(null);
+    (getItem as jest.Mock).mockReturnValue(null);
     render(
       <ToastProvider>
         <WalletProvider idleTimeout={2000}>
@@ -270,6 +279,6 @@ describe('WalletContext persistence', () => {
       jest.advanceTimersByTime(2000);
     });
     expect(screen.getByTestId('address')).toHaveTextContent('null');
-    expect(mockStorage.removeItem).toHaveBeenCalledWith('wallet_connected_address');
+    expect(removeItem).toHaveBeenCalledWith('wallet_connected_address');
   });
 });

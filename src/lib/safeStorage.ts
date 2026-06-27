@@ -127,3 +127,10 @@ export function resetCache(): void {
   }
 }
 
+export const safeStorage = {
+  getItem,
+  setItem,
+  removeItem,
+  resetCache,
+};
+

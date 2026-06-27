@@ -191,7 +191,9 @@ describe('ContractSummary', () => {
       const writeText = mockClipboard();
       renderWithPrefs(<ContractSummary {...defaultProps} />);
 
-      const copyBtn = screen.getByRole('button', { name: /copy client address to clipboard/i });
+      const copyBtn = screen.getByRole('button', {
+        name: /copy client address to clipboard/i,
+      });
       expect(copyBtn).toBeInTheDocument();
       expect(copyBtn).toHaveAttribute('title', 'Copy address');
 
@@ -207,26 +209,91 @@ describe('ContractSummary', () => {
       );
     });
 
-    it('shows checkmark icon and reverts after 2 seconds', async () => {
+    it('updates the accessible button name when copied and reverts after 2 seconds', async () => {
       mockClipboard();
       renderWithPrefs(<ContractSummary {...defaultProps} />);
 
-      const copyBtn = screen.getByRole('button', { name: /copy client address to clipboard/i });
-      const copyIconPathBefore = copyBtn.querySelector('path')?.getAttribute('d');
+      const copyBtn = screen.getByRole('button', {
+        name: /copy client address to clipboard/i,
+      });
+      expect(copyBtn).toBeInTheDocument();
 
       await act(async () => {
         fireEvent.click(copyBtn);
       });
 
-      const checkPath = copyBtn.querySelector('path[d="M5 13l4 4L19 7"]');
-      expect(checkPath).toBeInTheDocument();
+      const copiedButton = screen.getByRole('button', {
+        name: /client address copied/i,
+      });
+      expect(copiedButton).toBeInTheDocument();
+      expect(copiedButton).toHaveAttribute('title', 'Client address copied');
 
       await act(async () => {
         jest.advanceTimersByTime(2000);
       });
 
-      const copyIconPathAfter = copyBtn.querySelector('path')?.getAttribute('d');
-      expect(copyIconPathAfter).toEqual(copyIconPathBefore);
+      expect(
+        screen.getByRole('button', {
+          name: /copy client address to clipboard/i,
+        })
+      ).toBeInTheDocument();
+    });
+
+    it('clears the pending timeout when the same address is copied again before revert', async () => {
+      const writeText = mockClipboard();
+      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+      renderWithPrefs(<ContractSummary {...defaultProps} />);
+
+      const copyBtn = screen.getByRole('button', {
+        name: /copy client address to clipboard/i,
+      });
+
+      await act(async () => {
+        fireEvent.click(copyBtn);
+      });
+
+      await act(async () => {
+        fireEvent.click(copyBtn);
+      });
+
+      expect(writeText).toHaveBeenCalledTimes(2);
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+      expect(
+        screen.getByRole('button', {
+          name: /client address copied/i,
+        })
+      ).toBeInTheDocument();
+
+      await act(async () => {
+        jest.advanceTimersByTime(2000);
+      });
+
+      expect(
+        screen.getByRole('button', {
+          name: /copy client address to clipboard/i,
+        })
+      ).toBeInTheDocument();
+
+      clearTimeoutSpy.mockRestore();
+    });
+
+    it('clears the pending timeout when the component unmounts', async () => {
+      mockClipboard();
+      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+      const { unmount } = renderWithPrefs(<ContractSummary {...defaultProps} />);
+
+      const copyBtn = screen.getByRole('button', {
+        name: /copy client address to clipboard/i,
+      });
+
+      await act(async () => {
+        fireEvent.click(copyBtn);
+      });
+
+      unmount();
+
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+      clearTimeoutSpy.mockRestore();
     });
 
     it('shows error toast when copying to clipboard fails', async () => {

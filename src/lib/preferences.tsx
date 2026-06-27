@@ -11,22 +11,27 @@ export type ToastDensity = 'relaxed' | 'compact';
 /**
  * Safely format a number as currency, falling back to USD if the provided currency code is invalid.
  */
+type CurrencyFormatOptions = Intl.NumberFormatOptions & {
+  locale?: string;
+};
+
 function safeCurrencyFormat(
   amount: number,
   currency: string,
-  options: Intl.NumberFormatOptions & { locale?: string } = {}
+  options: CurrencyFormatOptions = {}
 ): string {
   const defaultCurrency = 'USD';
-  const { locale = 'en-US', ...fmtOptions } = options;
+  const { locale = 'en-US', ...formatOptions } = options;
+
   try {
     return new Intl.NumberFormat(locale, {
-      ...fmtOptions,
+      ...formatOptions,
       style: 'currency',
       currency,
     }).format(amount);
-  } catch (_e) {
+  } catch {
     return new Intl.NumberFormat(locale, {
-      ...fmtOptions,
+      ...formatOptions,
       style: 'currency',
       currency: defaultCurrency,
     }).format(amount);

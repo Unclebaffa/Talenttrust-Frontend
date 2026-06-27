@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@/components/toast/toast-provider';
+import { requestAccess } from '@stellar/freighter-api';
 import { getItem, setItem, removeItem } from '@/lib/safeStorage';
 
 export type WalletContextType = {

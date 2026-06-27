@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import StatusBadge, { StatusType } from './StatusBadge';
 import { truncateAddress } from '@/lib/truncateAddress';
 import { usePreferences } from '@/lib/preferences';
@@ -33,6 +33,7 @@ const ContractSummary = ({
   const { formatAmount } = usePreferences();
   const { showSuccess, showError } = useToast();
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+  const copyResetTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const formattedValue = formatAmount(totalValue, currency);
 
@@ -48,6 +49,10 @@ const ContractSummary = ({
    *   reverting it back to null after 2 seconds.
    * - Triggers a success toast on successful clipboard write.
    * - Triggers an error toast on any clipboard write failures.
+   *
+   * This function also ensures the button's accessible name reflects the
+   * temporary copied state so that assistive technology users perceive the
+   * per-party confirmation directly on the control.
    *
    * @param address - The full, non-truncated wallet address to copy.
    */
@@ -67,8 +72,14 @@ const ContractSummary = ({
         title: 'Address copied',
         description: 'The address has been successfully copied to your clipboard.',
       });
-      setTimeout(() => {
+
+      if (copyResetTimeout.current) {
+        clearTimeout(copyResetTimeout.current);
+      }
+
+      copyResetTimeout.current = setTimeout(() => {
         setCopiedAddress(null);
+        copyResetTimeout.current = null;
       }, 2000);
     } catch {
       showError({
@@ -77,6 +88,14 @@ const ContractSummary = ({
       });
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (copyResetTimeout.current) {
+        clearTimeout(copyResetTimeout.current);
+      }
+    };
+  }, []);
 
   return (
     <section
@@ -121,8 +140,12 @@ const ContractSummary = ({
                   <button
                     onClick={() => handleCopy(party.address)}
                     className="flex-shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    aria-label={`Copy ${party.label} address to clipboard`}
-                    title="Copy address"
+                    aria-label={
+                      isCopied
+                        ? `${party.label} address copied`
+                        : `Copy ${party.label} address to clipboard`
+                    }
+                    title={isCopied ? `${party.label} address copied` : 'Copy address'}
                   >
                     {isCopied ? (
                       <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
