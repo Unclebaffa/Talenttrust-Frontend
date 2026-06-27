@@ -8,8 +8,9 @@ export type Theme = 'light' | 'dark' | 'system';
 export type AmountFormat = 'usd' | 'ngn' | 'compact';
 export type ToastDensity = 'relaxed' | 'compact';
 
-interface SafeCurrencyFormatOptions extends Intl.NumberFormatOptions {
+interface FormatOptions {
   locale?: string;
+  notation?: 'compact' | 'standard' | 'scientific' | 'engineering';
 }
 
 /**
@@ -22,22 +23,22 @@ type CurrencyFormatOptions = Intl.NumberFormatOptions & {
 function safeCurrencyFormat(
   amount: number,
   currency: string,
-  options: SafeCurrencyFormatOptions = {}
+  options: FormatOptions = {}
 ): string {
-  const { locale, ...formatOptions } = options;
+  const { locale, notation } = options;
   const defaultCurrency = 'USD';
-  const { locale = 'en-US', ...formatOptions } = options;
-
+  const formatOptions: Intl.NumberFormatOptions = {
+    style: 'currency',
+    currency,
+  };
+  if (notation) {
+    formatOptions.notation = notation;
+  }
   try {
+    return new Intl.NumberFormat(locale || 'en-US', formatOptions).format(amount);
+  } catch {
     return new Intl.NumberFormat(locale || 'en-US', {
       ...formatOptions,
-      style: 'currency',
-      currency,
-    }).format(amount);
-  } catch (_e) {
-    return new Intl.NumberFormat(locale || 'en-US', {
-      ...formatOptions,
-      style: 'currency',
       currency: defaultCurrency,
     }).format(amount);
   }
@@ -77,8 +78,8 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     if (saved) {
       try {
         setPreferences({ ...DEFAULT_PREFERENCES, ...JSON.parse(saved) });
-      } catch (e) {
-        console.error('Failed to parse preferences', e);
+  } catch (_e) {
+        console.error('Failed to parse preferences', _e);
       }
     }
     setIsHydrated(true);
