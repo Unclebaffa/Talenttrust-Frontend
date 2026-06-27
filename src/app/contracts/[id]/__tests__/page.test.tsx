@@ -268,26 +268,26 @@ describe('ContractProgress integration', () => {
 // ---------------------------------------------------------------------------
 
 describe('empty milestones handling', () => {
-  it('renders ContractProgress with zero state when milestones array is empty', async () => {
+  it('renders ContractProgress empty state when milestones array is empty', async () => {
     const empty = { ...deepClone(BASE_CONTRACT), milestones: [] };
     (contractResolver.resolveContractData as jest.Mock).mockResolvedValueOnce(empty);
 
     await renderPage();
 
     await waitFor(() => {
-      const bar = screen.getByRole('progressbar');
-      expect(bar).toHaveAttribute('aria-valuenow', '0');
+      expect(screen.getByText('No milestones yet')).toBeInTheDocument();
     });
   });
 
-  it('shows 0 / 0 milestone count when milestones array is empty', async () => {
+  it('does not render a progressbar when milestones array is empty', async () => {
     const empty = { ...deepClone(BASE_CONTRACT), milestones: [] };
     (contractResolver.resolveContractData as jest.Mock).mockResolvedValueOnce(empty);
 
     await renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('0 / 0')).toBeInTheDocument();
+      // Empty state replaces the bar with a descriptive message; no progressbar expected.
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     });
   });
 

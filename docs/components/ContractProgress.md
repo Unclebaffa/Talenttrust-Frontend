@@ -55,7 +55,27 @@ All calculation is performed by the internal `calculateProgress(milestones)` hel
 
 **Currency:** Derived from the first milestone's `currency` field; falls back to `"USD"` when the array is empty. Monetary values are formatted via `formatAmount` from `usePreferences`, so they respect the user's selected amount format (USD, NGN, compact).
 
-## Layout
+## Empty State
+
+When `milestones` is an empty array, `ContractProgress` renders an explicit **"No milestones yet"** message in place of the completion row and progress bar. The financial cards (Paid / Outstanding) remain visible showing zero values so the card layout stays consistent.
+
+The `role="progressbar"` element is intentionally omitted for the empty state. An `aria-valuenow="0"` bar with no milestones to measure conveys no meaningful information to assistive technologies and reads as a broken state to both sighted users and screen reader users. A plain `<p>` announcement of "No milestones yet" is unambiguous.
+
+```
+Empty state layout:
+┌──────────────────────────────────────────┐
+│ Escrow Progress                          │
+│                                          │
+│  No milestones yet                       │
+│                                          │
+│  ┌──────────────┐  ┌──────────────┐     │
+│  │  Paid        │  │  Outstanding │     │
+│  │  $0.00       │  │  $0.00       │     │
+│  └──────────────┘  └──────────────┘     │
+└──────────────────────────────────────────┘
+```
+
+
 
 The component renders as a `<section>` card that follows the same `rounded-3xl border shadow-sm` card style used by `ContractSummary` and `MilestonesList`.
 
@@ -132,11 +152,12 @@ Tests are in `src/components/__tests__/ContractProgress.test.tsx`, targeting ≥
 
 | Test group | Scenarios |
 |---|---|
-| Rendering | Heading, progressbar, and fund cards always present |
-| Zero milestones | 0 / 0 ratio, `aria-valuenow="0"`, both amounts USD 0.00 |
+| Rendering | Heading, progressbar (non-empty only), and fund cards always present |
+| Empty state | "No milestones yet" message shown; no progressbar rendered; fund cards show zero; section heading present; no throw |
+| Zero milestones | Both amounts show zero (legacy coverage via fund cards) |
 | All-paid | 2 / 2 ratio, `aria-valuenow="100"`, correct paid sum, outstanding = 0 |
 | None-paid | 0 / N ratio, `aria-valuenow="0"`, paid = 0, correct outstanding sum |
 | Mixed | Partial ratio, rounded percentage, correct paid/outstanding split |
-| ARIA attributes | `aria-valuemin`, `aria-valuemax`, `aria-valuenow`, `aria-label` content |
+| ARIA attributes | `aria-valuemin`, `aria-valuemax`, `aria-valuenow`, `aria-label` content; progressbar absent for empty |
 | "Paid" status | Treated identically to "Completed" for count and fund calculations |
 | Currency fallback | Empty array → USD; first milestone's currency used otherwise |
