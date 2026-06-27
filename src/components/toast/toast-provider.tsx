@@ -13,10 +13,23 @@ import { usePreferences } from '@/lib/preferences';
 
 type ToastVariant = 'success' | 'error';
 
+/** Optional inline action attached to a toast. */
+type ToastAction = {
+  /** Plain-text label rendered inside the action button. Never interpolated as HTML. */
+  label: string;
+  /** Callback fired when the user clicks the action button. */
+  onClick: () => void;
+};
+
 type ToastInput = {
   title: string;
   description?: string;
   duration?: number;
+  /**
+   * Optional action button rendered inside the toast.
+   * Clicking it fires `onClick` and immediately dismisses the toast.
+   */
+  action?: ToastAction;
 };
 
 type ToastRecord = ToastInput & {
@@ -80,7 +93,6 @@ function getToastStyles(variant: ToastVariant) {
   };
 }
 
-
 function ToastViewport({
   toasts,
   onDismiss,
@@ -133,6 +145,21 @@ function ToastViewport({
                   // light, 6.96:1 dark). See docs/components/Accessibility.md.
                   <p className="mt-1 text-sm text-[var(--muted-foreground)]">{toast.description}</p>
                 ) : null}
+                {toast.action ? (
+                  // Action button: label is a plain text node — never set via
+                  // innerHTML or dangerouslySetInnerHTML. Clicking fires the
+                  // caller-supplied callback then immediately dismisses this toast.
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toast.action!.onClick();
+                      onDismiss(toast.id);
+                    }}
+                    className="mt-2 rounded-md px-3 py-1 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-1 bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90"
+                  >
+                    {toast.action.label}
+                  </button>
+                ) : null}
               </div>
               <button
                 aria-label={`Dismiss ${badgeLabel.toLowerCase()} notification`}
@@ -142,6 +169,12 @@ function ToastViewport({
                 // background also stayed fixed-light, producing a bright
                 // patch on a dark panel. Replaced with themed tokens that
                 // pass AA in both modes.
+                // The `transition` utility is kept here; the global
+                // @media (prefers-reduced-motion: reduce) rule in
+                // globals.css collapses its duration to 0.01ms so the
+                // button snaps to its hover/focus state instantly for
+                // users who prefer reduced motion, without any layout
+                // shift or visibility change.
                 className="rounded-full p-1.5 text-[var(--muted-foreground)] transition hover:bg-[var(--accent)] hover:text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
                 onClick={() => onDismiss(toast.id)}
                 type="button"
@@ -212,6 +245,12 @@ type ToastTimerState = {
  * `preferences.toastDensity` controls the vertical gap between stacked toasts:
  * - `'relaxed'` (default) → `gap-3` (12px)
  * - `'compact'` → `gap-1.5` (6px)
+ *
+ * ## Action button
+ *
+ * Pass `action: { label, onClick }` in the toast input to render an inline
+ * action button. Clicking it fires `onClick` then dismisses the toast.
+ * The label is always rendered as a plain text node.
  */
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastRecord[]>([]);
