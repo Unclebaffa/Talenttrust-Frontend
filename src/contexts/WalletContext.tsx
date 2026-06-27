@@ -2,6 +2,14 @@
 
 import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@/components/toast/toast-provider';
+import { isValidStellarAddress } from '@/lib/stellarAddress';
+
+/**
+ * Mock Stellar G-address used during development until Freighter integration.
+ * This is a syntactically valid Stellar public key (56-char base32 G... format)
+ * that passes {@link isValidStellarAddress}. No real secret or seed is embedded.
+ */
+export const MOCKED_STELLAR_ADDRESS = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 import { safeStorage } from '@/lib/safeStorage';
 
 export type WalletContextType = {
@@ -119,6 +127,12 @@ export function WalletProvider({
     setIsConnecting(true);
     setError(null);
     try {
+      // Mocking wallet connection delay (pending Freighter integration)
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Mocked Stellar G-address
+      setAddress(MOCKED_STELLAR_ADDRESS);
+    } catch (_err) {
+      setError('Failed to connect wallet');
       if (typeof window === 'undefined') {
         throw new Error('FREIGHTER_NOT_INSTALLED');
       }
