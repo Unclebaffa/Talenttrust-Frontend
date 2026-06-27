@@ -24,7 +24,7 @@ function safeCurrencyFormat(
       style: 'currency',
       currency,
     }).format(amount);
-  } catch (e) {
+  } catch (_e) {
     return new Intl.NumberFormat(locale, {
       ...fmtOptions,
       style: 'currency',
