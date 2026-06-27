@@ -1,58 +1,11 @@
 'use client';
 
 import { usePreferences } from '@/lib/preferences';
+import { useContractProgress } from '@/hooks/useContractProgress';
 import { Milestone } from './MilestonesList';
 
 export interface ContractProgressProps {
   milestones: Milestone[];
-}
-
-/**
- * Derives escrow progress metrics from a milestone array.
- *
- * Calculates:
- * - `completedCount`: Number of milestones with status "Completed" or "Paid".
- * - `totalCount`: Total number of milestones.
- * - `paidAmount`: Sum of payouts for milestones with status "Completed" or "Paid".
- * - `outstandingAmount`: Sum of payouts for all other milestones.
- *
- * Guards against empty arrays and ensures safe integer arithmetic (no overflow risk
- * within JavaScript's Number.MAX_SAFE_INTEGER bounds for typical contract values).
- *
- * @param milestones - Array of milestone objects.
- * @returns An object containing completedCount, totalCount, paidAmount, and outstandingAmount.
- */
-function calculateProgress(milestones: Milestone[]) {
-  if (!milestones || milestones.length === 0) {
-    return {
-      completedCount: 0,
-      totalCount: 0,
-      paidAmount: 0,
-      outstandingAmount: 0,
-    };
-  }
-
-  let completedCount = 0;
-  let paidAmount = 0;
-  let outstandingAmount = 0;
-
-  for (const milestone of milestones) {
-    const isCompleted = milestone.status === 'Completed' || milestone.status === 'Paid';
-    
-    if (isCompleted) {
-      completedCount += 1;
-      paidAmount += milestone.payout;
-    } else {
-      outstandingAmount += milestone.payout;
-    }
-  }
-
-  return {
-    completedCount,
-    totalCount: milestones.length,
-    paidAmount,
-    outstandingAmount,
-  };
 }
 
 /**
@@ -80,13 +33,8 @@ function calculateProgress(milestones: Milestone[]) {
  */
 const ContractProgress = ({ milestones }: ContractProgressProps) => {
   const { formatAmount } = usePreferences();
-  const { completedCount, totalCount, paidAmount, outstandingAmount } = calculateProgress(milestones);
-
-  // Calculate progress percentage (0–100)
-  const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-
-  // Determine currency from first milestone, fallback to USD
-  const currency = milestones.length > 0 ? milestones[0].currency : 'USD';
+  const { completedCount, totalCount, paidAmount, outstandingAmount, progressPercent, currency } =
+    useContractProgress(milestones);
 
   return (
     <section
