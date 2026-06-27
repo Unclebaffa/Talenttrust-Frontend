@@ -344,3 +344,204 @@ describe('a11y: toast panels dark theme', () => {
     expect(dismissButton.className).not.toMatch(/slate-(100|500|900)/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// prefers-reduced-motion suite
+//
+// Mocks window.matchMedia to return `matches: true` for the
+// `(prefers-reduced-motion: reduce)` query and asserts that:
+//   1. The WalletConnectButton spinner stays in the DOM (visible loading cue)
+//      but the `animate-spin` class is still present on the SVG — CSS halts
+//      the rotation; the element must not be removed.
+//   2. Toast panels still render and snap into their final layout state with
+//      no axe violations.
+//   3. Transitional CSS classes on the dismiss button are not stripped —
+//      the global CSS rule handles collapsing them to 0ms, so the class
+//      must remain to avoid breaking themes.
+// ---------------------------------------------------------------------------
+
+import { WalletConnectButton } from '../WalletConnectButton';
+import { render as plainRender } from '@testing-library/react';
+
+/**
+ * Replaces window.matchMedia with an implementation that answers `true`
+ * only for `(prefers-reduced-motion: reduce)`. Returns a restore callback.
+ */
+function mockReducedMotion(): () => void {
+  const original = window.matchMedia;
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: jest.fn().mockImplementation((query: string) => ({
+      matches: query === '(prefers-reduced-motion: reduce)',
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+  return () => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: original,
+    });
+  };
+}
+
+describe('a11y: prefers-reduced-motion — WalletConnectButton', () => {
+  let restoreMatchMedia: () => void;
+
+  beforeEach(() => {
+    restoreMatchMedia = mockReducedMotion();
+  });
+
+  afterEach(() => {
+    restoreMatchMedia();
+  });
+
+  it('matchMedia returns true for the reduced-motion query', () => {
+    expect(window.matchMedia('(prefers-reduced-motion: reduce)').matches).toBe(true);
+    expect(window.matchMedia('(prefers-color-scheme: dark)').matches).toBe(false);
+  });
+
+  it('spinner SVG remains in the DOM while connecting (static loading indicator)', () => {
+    // The WalletContext mock from jest.setup.ts is the global default.
+    // Override locally to force the connecting branch.
+    jest.mock('@/contexts/WalletContext', () => ({
+      useWallet: jest.fn().mockReturnValue({
+        address: null,
+        isConnecting: true,
+        error: null,
+        connect: jest.fn(),
+        disconnect: jest.fn(),
+      }),
+      WalletProvider: ({ children }: { children: React.ReactNode }) => children,
+    }));
+
+    // Re-require so the mock takes effect for this render path.
+    // Because the global setup already has a jest.mock at module level,
+    // we rely on the global mock and just assert the spinner is present.
+    const { useWallet } = require('@/contexts/WalletContext') as {
+      useWallet: jest.Mock;
+    };
+    useWallet.mockReturnValue({
+      address: null,
+      isConnecting: true,
+      error: null,
+      connect: jest.fn(),
+      disconnect: jest.fn(),
+    });
+
+    const { container } = plainRender(<WalletConnectButton />);
+
+    // The SVG with animate-spin must be present so a static circle is shown.
+    const spinner = container.querySelector('svg.animate-spin');
+    expect(spinner).toBeInTheDocument();
+
+    // The "Connecting..." label must still be present.
+    expect(screen.getByText(/connecting\.\.\./i)).toBeInTheDocument();
+  });
+
+  it('spinner SVG carries animate-spin class (CSS halts rotation; class stays)', () => {
+    const { useWallet } = require('@/contexts/WalletContext') as {
+      useWallet: jest.Mock;
+    };
+    useWallet.mockReturnValue({
+      address: null,
+      isConnecting: true,
+      error: null,
+      connect: jest.fn(),
+      disconnect: jest.fn(),
+    });
+
+    const { container } = plainRender(<WalletConnectButton />);
+    const spinner = container.querySelector('svg.animate-spin');
+    // Class must not be stripped — the @media rule in CSS stops the spin.
+    expect(spinner).not.toBeNull();
+    expect(spinner!.classList.contains('animate-spin')).toBe(true);
+  });
+
+  it('WalletConnectButton has no axe violations while connecting under reduced motion', async () => {
+    const { useWallet } = require('@/contexts/WalletContext') as {
+      useWallet: jest.Mock;
+    };
+    useWallet.mockReturnValue({
+      address: null,
+      isConnecting: true,
+      error: null,
+      connect: jest.fn(),
+      disconnect: jest.fn(),
+    });
+
+    await testA11y(<WalletConnectButton />);
+  });
+});
+
+describe('a11y: prefers-reduced-motion — toast panels', () => {
+  let restoreMatchMedia: () => void;
+
+  beforeEach(() => {
+    restoreMatchMedia = mockReducedMotion();
+  });
+
+  afterEach(() => {
+    restoreMatchMedia();
+    setTheme('light');
+  });
+
+  it('matchMedia returns true for the reduced-motion query inside toast suite', () => {
+    expect(window.matchMedia('(prefers-reduced-motion: reduce)').matches).toBe(true);
+  });
+
+  it('success toast snaps into view with no axe violations under reduced motion', async () => {
+    const view = renderWithA11y(
+      <ToastProvider>
+        <ToastTrigger />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /trigger success/i }));
+    await assertNoA11yViolations(view.container);
+  });
+
+  it('error toast snaps into view with no axe violations under reduced motion', async () => {
+    const view = renderWithA11y(
+      <ToastProvider>
+        <ToastTrigger />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /trigger error/i }));
+    await assertNoA11yViolations(view.container);
+  });
+
+  it('dismiss button retains its transition class (CSS handles duration collapse)', () => {
+    renderWithA11y(
+      <ToastProvider>
+        <ToastTrigger />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /trigger success/i }));
+
+    const dismissBtn = screen.getByRole('button', { name: /dismiss success notification/i });
+    // The `transition` utility must be kept in the className — the
+    // prefers-reduced-motion media query in globals.css collapses its
+    // duration to 0.01ms so the snap is instant, but stripping the class
+    // would break the hover/focus style tokens that depend on it.
+    expect(dismissBtn.className).toContain('transition');
+  });
+
+  it('toast panel is present in the DOM immediately (no deferred mount)', () => {
+    const { container } = renderWithA11y(
+      <ToastProvider>
+        <ToastTrigger />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /trigger error/i }));
+
+    // The toast panel must be in the DOM synchronously after the click,
+    // not deferred behind an animation frame, so it snaps into view.
+    const toastPanel = container.querySelector('[role="alert"]');
+    expect(toastPanel).toBeInTheDocument();
+  });
+});

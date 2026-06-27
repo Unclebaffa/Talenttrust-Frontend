@@ -85,3 +85,32 @@ body {
   background: var(--background);
   font-feature-settings: "rlig" 1, "calt" 1;
 }
+
+/* prefers-reduced-motion: halt all animations and transitions for users
+   who have requested reduced motion via their OS/browser settings.
+   - animate-spin (and any Tailwind animation utility) is stopped by
+     setting animation to none.
+   - All CSS transitions are collapsed to instant (duration 0ms) so
+     elements snap to their end state without motion.
+   - scroll-behavior is set to auto to prevent smooth scrolling.
+   Elements that serve as static loading indicators (e.g. the spinner SVG
+   inside WalletConnectButton) remain visible in the DOM; only the
+   rotation is halted so the indicator is still perceivable. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Explicitly stop Tailwind's animate-spin so the spinner SVG becomes
+     a static circle rather than a continuously rotating element. The
+     element remains in the DOM and is still visible as a loading cue. */
+  .animate-spin {
+    animation: none !important;
+  }
+}

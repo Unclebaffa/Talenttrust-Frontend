@@ -142,6 +142,12 @@ function ToastViewport({
                 // background also stayed fixed-light, producing a bright
                 // patch on a dark panel. Replaced with themed tokens that
                 // pass AA in both modes.
+                // The `transition` utility is kept here; the global
+                // @media (prefers-reduced-motion: reduce) rule in
+                // globals.css collapses its duration to 0.01ms so the
+                // button snaps to its hover/focus state instantly for
+                // users who prefer reduced motion, without any layout
+                // shift or visibility change.
                 className="rounded-full p-1.5 text-[var(--muted-foreground)] transition hover:bg-[var(--accent)] hover:text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
                 onClick={() => onDismiss(toast.id)}
                 type="button"
