@@ -65,7 +65,7 @@ const ContractDetailPageContent = ({ id }: { id: string }) => {
    */
   const persistContractStatus = useCallback(
     (
-      nextStatus: Contract['status'],
+      nextStatus: ContractData['status'],
       successTitle: string,
       successDescription: string,
     ) => {

@@ -5,6 +5,24 @@ import StatusBadge, { StatusType } from './StatusBadge';
 import { truncateAddress } from '@/lib/truncateAddress';
 import { usePreferences } from '@/lib/preferences';
 import { useToast } from '@/components/toast/toast-provider';
+import { normalizeStellarAddress, isValidStellarAddress } from '@/lib/stellarAddress';
+
+/**
+ * Sanitizes an address by stripping ASCII control characters (U+0000–U+001F, U+007F–U+009F)
+ * and Unicode bidirectional text override/control characters (U+200E, U+200F, U+202A–U+202E, U+2066–U+2069)
+ * to prevent hidden clipboard injection attacks.
+ *
+ * @param address - The raw address string.
+ * @returns The sanitized address string.
+ */
+export function sanitizeAddress(address: string): string {
+  if (typeof address !== 'string') {
+    return '';
+  }
+  // eslint-disable-next-line no-control-regex
+  const controlAndBidiRegex = /[\u0000-\u001F\u007F-\u009F\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
+  return address.replace(controlAndBidiRegex, '');
+}
 
 export type ContractParty = {
   label: string;
@@ -70,8 +88,15 @@ const ContractSummary = ({
       return;
     }
 
+    const sanitized = sanitizeAddress(address);
+    const normalized = normalizeStellarAddress(sanitized);
+
+    if (!isValidStellarAddress(normalized)) {
+      console.warn(`[ContractSummary] Copied address appears malformed: "${normalized}"`);
+    }
+
     try {
-      await navigator.clipboard.writeText(address);
+      await navigator.clipboard.writeText(normalized);
       setCopiedAddress(address);
       showSuccess({
         title: 'Address copied',
@@ -154,8 +179,8 @@ const ContractSummary = ({
                     <button
                       onClick={() => handleCopy(party.address)}
                       className="flex-shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      aria-label={`Copy ${party.label} address to clipboard`}
-                      title="Copy address"
+                      aria-label={isCopied ? `${party.label} address copied` : `Copy ${party.label} address to clipboard`}
+                      title={isCopied ? `${party.label} address copied` : 'Copy address'}
                     >
                       {isCopied ? (
                         <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">

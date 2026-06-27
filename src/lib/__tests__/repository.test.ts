@@ -21,6 +21,7 @@ import {
   STORAGE_KEY,
 } from '../repository';
 import type { Contract, Milestone } from '@/types/domain';
+import { setErrorReporter } from '../errorReporter';
 
 // ---------------------------------------------------------------------------
 // Fixtures

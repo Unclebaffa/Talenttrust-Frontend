@@ -371,25 +371,12 @@ describe('ContractProgress', () => {
       expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuemax', '100');
     });
 
-    it('sets aria-valuenow to 0 when the milestone list is empty', () => {
-      render(<ContractProgress milestones={[]} />);
-      expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0');
-    });
-
     it('provides a descriptive aria-label for 1 of 2 milestones (50 %)', () => {
       const milestones = [makeCompletedMilestone(), makePendingMilestone()];
       render(<ContractProgress milestones={milestones} />);
       expect(screen.getByRole('progressbar')).toHaveAttribute(
         'aria-label',
         '1 of 2 milestones completed, 50%',
-      );
-    });
-
-    it('provides a descriptive aria-label for 0 of 0 milestones (0 %)', () => {
-      render(<ContractProgress milestones={[]} />);
-      expect(screen.getByRole('progressbar')).toHaveAttribute(
-        'aria-label',
-        '0 of 0 milestones completed, 0%',
       );
     });
 

@@ -5,10 +5,7 @@ import { ToastProvider } from '@/components/toast/toast-provider';
 import { PreferencesProvider } from '@/lib/preferences';
 import { testA11y } from '@/test-utils/a11y';
 import userEvent from '@testing-library/user-event';
-import {
-  MAX_EMAIL_LENGTH,
-  MAX_PASSWORD_LENGTH,
-} from '@/lib/validateLogin';
+
 
 const renderWithProviders = (ui: React.ReactElement) => {
   return render(

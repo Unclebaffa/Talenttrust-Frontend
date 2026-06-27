@@ -115,8 +115,7 @@ const ActionPanel = ({
 
   // Confirmation dialog state tracks the currently gated escrow action.
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
-  const triggerButtonRef = useRef<HTMLButtonElement | null>(null);
-  const previousConfirmActionRef = useRef<'release' | 'dispute' | null>(null);
+  const previousConfirmActionRef = useRef<ConfirmAction>(null);
 
   /**
    * Holds a reference to the button that opened the confirmation dialog.
@@ -163,7 +162,7 @@ const ActionPanel = ({
     const wasDialogOpen = previousConfirmActionRef.current !== null;
 
     if (wasDialogOpen && confirmAction === null) {
-      const triggerButton = triggerButtonRef.current;
+      const triggerButton = triggerElementRef.current;
 
       if (triggerButton && document.contains(triggerButton) && !triggerButton.disabled) {
         triggerButton.focus();
@@ -242,7 +241,7 @@ const ActionPanel = ({
         {actions.includes('Release Funds') && (
           <button
             type="button"
-            onClick={(event) => handleOpenConfirm('release', event.currentTarget)}
+            onClick={(event) => handleOpenConfirm('release', event)}
             disabled={!isWalletConnected || isLoading || !!disabledReasons?.releaseFunds}
             title={!isWalletConnected ? noWalletMsg : undefined}
             aria-label="Release funds to the contractor"
@@ -256,7 +255,7 @@ const ActionPanel = ({
         {actions.includes('Dispute') && (
           <button
             type="button"
-            onClick={(event) => handleOpenConfirm('dispute', event.currentTarget)}
+            onClick={(event) => handleOpenConfirm('dispute', event)}
             disabled={!isWalletConnected || isLoading || !!disabledReasons?.dispute}
             title={!isWalletConnected ? noWalletMsg : undefined}
             aria-label="Open a dispute for this contract"

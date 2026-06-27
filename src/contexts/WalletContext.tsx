@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@/components/toast/toast-provider';
 import { getItem, setItem, removeItem } from '@/lib/safeStorage';
-import { requestAccess } from '@stellar/freighter-api';
 
 export type WalletContextType = {
   address: string | null;
@@ -17,6 +16,7 @@ const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export const FREIGHTER_NOT_INSTALLED = 'Freighter wallet is not installed. Please install the Freighter browser extension.';
 export const USER_REJECTED = 'User rejected the connection request.';
+export const MOCKED_STELLAR_ADDRESS = 'GAAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQDZ7H';
 
 /**
  * WalletProvider provides the global wallet connection state.
@@ -27,7 +27,6 @@ export const USER_REJECTED = 'User rejected the connection request.';
  * @param idleTimeout - Inactivity duration in milliseconds before auto-disconnect.
  *                      Set to 0 or undefined to disable.
  */
-declare function requestAccess(): Promise<{ address: string; error: string | null }>;
 
 export function WalletProvider({
   children,
@@ -52,13 +51,7 @@ export function WalletProvider({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const STORAGE_KEY = 'wallet_connected_address';
 
-  // Rehydrate saved address from localStorage on mount
-  useEffect(() => {
-    const saved = safeStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      setAddress(saved);
-    }
-  }, []);
+
 
   const disconnect = useCallback(() => {
     setAddress(null);
@@ -126,38 +119,9 @@ export function WalletProvider({
       await new Promise((resolve) => setTimeout(resolve, 1000));
       // Mocked Stellar G-address
       setAddress(MOCKED_STELLAR_ADDRESS);
+      setItem(STORAGE_KEY, MOCKED_STELLAR_ADDRESS);
     } catch (_err) {
       setError('Failed to connect wallet');
-      if (typeof window === 'undefined') {
-        throw new Error('FREIGHTER_NOT_INSTALLED');
-      }
-
-      if (!window.freighter) {
-        throw new Error('FREIGHTER_NOT_INSTALLED');
-      }
-
-      const result = await requestAccess();
-
-      if (result.error) {
-        throw new Error('USER_REJECTED');
-      }
-
-      if (!result.address) {
-        throw new Error('USER_REJECTED');
-      }
-
-      setAddress(result.address);
-      safeStorage.setItem(STORAGE_KEY, result.address);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to connect wallet';
-
-      if (message === 'FREIGHTER_NOT_INSTALLED') {
-        setError(FREIGHTER_NOT_INSTALLED);
-      } else if (message === 'USER_REJECTED') {
-        setError(USER_REJECTED);
-      } else {
-        setError(message);
-      }
     } finally {
       setIsConnecting(false);
     }

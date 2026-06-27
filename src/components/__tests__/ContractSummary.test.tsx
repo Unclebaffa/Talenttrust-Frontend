@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import ContractSummary from '../ContractSummary';
+import ContractSummary, { sanitizeAddress } from '../ContractSummary';
 import { PreferencesProvider } from '@/lib/preferences';
 import { testA11y } from '@/test-utils/a11y';
 
@@ -371,5 +371,79 @@ describe('ContractSummary', () => {
         })
       );
     });
+
+    it('strips control and bidirectional characters before copying to clipboard', async () => {
+      const writeText = mockClipboard();
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const VALID_KEY = 'GAAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQDZ7H';
+      // Insert control characters and bidi overrides
+      const dirtyAddress = `\u202EGAAQC\x03AIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQDZ7H`;
+
+      const dirtyProps = {
+        ...defaultProps,
+        parties: [
+          { label: 'Client', address: dirtyAddress }
+        ]
+      };
+      renderWithPrefs(<ContractSummary {...dirtyProps} />);
+
+      const copyBtn = screen.getByRole('button', { name: /copy client address to clipboard/i });
+
+      await act(async () => {
+        fireEvent.click(copyBtn);
+      });
+
+      expect(writeText).toHaveBeenCalledWith(VALID_KEY);
+      expect(mockShowSuccess).toHaveBeenCalled();
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('warns when copying a malformed address', async () => {
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const writeText = mockClipboard();
+
+      const malformedProps = {
+        ...defaultProps,
+        parties: [
+          { label: 'Client', address: 'INVALID_STELLAR_ADDRESS' }
+        ]
+      };
+      renderWithPrefs(<ContractSummary {...malformedProps} />);
+
+      const copyBtn = screen.getByRole('button', { name: /copy client address to clipboard/i });
+
+      await act(async () => {
+        fireEvent.click(copyBtn);
+      });
+
+      expect(writeText).toHaveBeenCalledWith('INVALID_STELLAR_ADDRESS');
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[ContractSummary] Copied address appears malformed: "INVALID_STELLAR_ADDRESS"')
+      );
+      consoleWarnSpy.mockRestore();
+    });
+  });
+});
+
+describe('sanitizeAddress', () => {
+  it('strips ASCII control characters', () => {
+    expect(sanitizeAddress('GAA\x00QCA\x1fIBA\x7fEAQ\x9fCAI')).toBe('GAAQCAIBAEAQCAI');
+  });
+
+  it('strips Unicode bidirectional characters', () => {
+    expect(sanitizeAddress('\u200EGAA\u200FQCA\u202AIBA\u202EEAQ\u2066CAI\u2069')).toBe('GAAQCAIBAEAQCAI');
+  });
+
+  it('leaves clean alphanumeric strings intact', () => {
+    expect(sanitizeAddress('GAAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQDZ7H')).toBe(
+      'GAAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQDZ7H'
+    );
+  });
+
+  it('returns empty string for non-string input', () => {
+    expect(sanitizeAddress(undefined as unknown as string)).toBe('');
+    expect(sanitizeAddress(null as unknown as string)).toBe('');
   });
 });

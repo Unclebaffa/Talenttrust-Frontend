@@ -93,7 +93,7 @@ function writeStore(data: AppData): boolean {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     return true;
   } catch (err) {
-    console.warn('[repository] Failed to write to localStorage.', err);
+    reportError(err, '[repository] Failed to write to localStorage.');
     return false;
   }
 }

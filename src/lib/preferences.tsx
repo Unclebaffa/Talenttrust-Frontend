@@ -8,40 +8,25 @@ export type Theme = 'light' | 'dark' | 'system';
 export type AmountFormat = 'usd' | 'ngn' | 'compact';
 export type ToastDensity = 'relaxed' | 'compact';
 
-interface SafeCurrencyFormatOptions extends Intl.NumberFormatOptions {
-  locale?: string;
-}
-
 /**
  * Safely format a number as currency, falling back to USD if the provided currency code is invalid.
  */
-type CurrencyFormatOptions = Intl.NumberFormatOptions & {
-  locale?: string;
-};
-
 function safeCurrencyFormat(
   amount: number,
   currency: string,
-  options: SafeCurrencyFormatOptions = {}
+  locale: string = 'en-US',
+  options: Intl.NumberFormatOptions = {}
 ): string {
-  const { locale, ...formatOptions } = options;
   const defaultCurrency = 'USD';
-  const formatOptions: Intl.NumberFormatOptions = {
-    style: 'currency',
-    currency,
-  };
-  if (notation) {
-    formatOptions.notation = notation;
-  }
   try {
-    return new Intl.NumberFormat(locale || 'en-US', {
-      ...formatOptions,
+    return new Intl.NumberFormat(locale, {
+      ...options,
       style: 'currency',
       currency,
     }).format(amount);
   } catch (_e) {
-    return new Intl.NumberFormat(locale || 'en-US', {
-      ...formatOptions,
+    return new Intl.NumberFormat(locale, {
+      ...options,
       style: 'currency',
       currency: defaultCurrency,
     }).format(amount);
