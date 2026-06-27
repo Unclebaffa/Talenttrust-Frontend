@@ -141,6 +141,48 @@ describe('ContractSummary', () => {
     expect(await screen.findByText('1 milestone')).toBeInTheDocument();
   });
 
+  it('displays correct party count for zero parties and renders fallback message', async () => {
+    renderWithPrefs(<ContractSummary {...defaultProps} parties={[]} />);
+
+    expect(screen.getByText('0 parties')).toBeInTheDocument();
+    expect(screen.getByText('No parties listed')).toBeInTheDocument();
+  });
+
+  it('displays correct party count for a single party', async () => {
+    renderWithPrefs(
+      <ContractSummary
+        {...defaultProps}
+        parties={[{ label: 'Client', address: 'GABC1234DEF5678HIJK9012LMNO3456PQRS7890' }]}
+      />
+    );
+
+    expect(screen.getByText('1 party')).toBeInTheDocument();
+    expect(screen.queryByText('No parties listed')).not.toBeInTheDocument();
+  });
+
+  it('displays correct party count for multiple parties', async () => {
+    renderWithPrefs(<ContractSummary {...defaultProps} />);
+    expect(screen.getByText('2 parties')).toBeInTheDocument();
+  });
+
+  it('handles duplicate party labels safely using composite keys', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const duplicateProps = {
+      ...defaultProps,
+      parties: [
+        { label: 'Client', address: 'GABC1234DEF5678HIJK9012LMNO3456PQRS7890' },
+        { label: 'Client', address: 'GXYZ9876STU5432VWXQ1098ABCD7654EFGH3210' },
+      ],
+    };
+    renderWithPrefs(<ContractSummary {...duplicateProps} />);
+
+    expect(screen.getAllByText('Client')).toHaveLength(2);
+    expect(consoleSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining('Each child in a list should have a unique "key" prop')
+    );
+    consoleSpy.mockRestore();
+  });
+
   it('renders with very long addresses', async () => {
     const longAddress =
       'GABC1234DEF5678HIJK9012LMNO3456PQRS7890WXYZ1234EXTRA';

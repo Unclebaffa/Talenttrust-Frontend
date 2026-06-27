@@ -4,6 +4,7 @@ const config = {
   watchman: false,
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   testPathIgnorePatterns: ['/node_modules/', '/.next/'],
+  modulePathIgnorePatterns: ['<rootDir>/.next/'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '\\.css$': '<rootDir>/src/__mocks__/styleMock.js',

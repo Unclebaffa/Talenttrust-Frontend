@@ -13,6 +13,11 @@ export type ContractParty = {
 
 export type ContractSummaryProps = {
   contractName: string;
+  /**
+   * The list of parties involved in the contract.
+   * Renders a fallback "No parties listed" when empty.
+   * Uses composite keys to handle duplicate labels safely.
+   */
   parties: ContractParty[];
   totalValue: number;
   currency: string;
@@ -103,40 +108,50 @@ const ContractSummary = ({
         <div className="rounded-2xl bg-slate-50 p-4">
           <p className="text-sm text-slate-500">Created</p>
           <p className="mt-2 text-base font-medium text-slate-900">{createdAt}</p>
-          <p className="mt-4 text-sm text-slate-500">Parties</p>
+          <div className="mt-4 flex items-center justify-between gap-2 border-b border-slate-200 pb-2">
+            <span className="text-sm text-slate-500">Parties</span>
+            <span className="text-xs font-semibold text-slate-500" aria-live="polite">
+              {parties.length} {parties.length === 1 ? 'party' : 'parties'}
+            </span>
+          </div>
           <div className="mt-3 space-y-3">
-            {parties.map((party) => {
-              const isCopied = copiedAddress === party.address;
-              return (
-                <div
-                  key={party.label}
-                  className="rounded-2xl bg-white p-3 text-sm ring-1 ring-slate-200 flex items-center justify-between gap-2"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-slate-600 font-medium">{party.label}</p>
-                    <p className="mt-1 text-slate-500 font-mono truncate">
-                      {truncateAddress(party.address)}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleCopy(party.address)}
-                    className="flex-shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    aria-label={`Copy ${party.label} address to clipboard`}
-                    title="Copy address"
+            {parties.length === 0 ? (
+              <p className="text-sm text-slate-500 italic">No parties listed</p>
+            ) : (
+              parties.map((party) => {
+                const isCopied = copiedAddress === party.address;
+                const compositeKey = `${party.label}-${party.address}`;
+                return (
+                  <div
+                    key={compositeKey}
+                    className="rounded-2xl bg-white p-3 text-sm ring-1 ring-slate-200 flex items-center justify-between gap-2"
                   >
-                    {isCopied ? (
-                      <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-              );
-            })}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-slate-600 font-medium">{party.label}</p>
+                      <p className="mt-1 text-slate-500 font-mono truncate">
+                        {truncateAddress(party.address)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleCopy(party.address)}
+                      className="flex-shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      aria-label={`Copy ${party.label} address to clipboard`}
+                      title="Copy address"
+                    >
+                      {isCopied ? (
+                        <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>

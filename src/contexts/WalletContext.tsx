@@ -2,7 +2,8 @@
 
 import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@/components/toast/toast-provider';
-import { safeStorage } from '@/lib/safeStorage';
+import { getItem, setItem, removeItem } from '@/lib/safeStorage';
+import { requestAccess } from '@stellar/freighter-api';
 
 export type WalletContextType = {
   address: string | null;
@@ -59,7 +60,7 @@ export function WalletProvider({
 
   const disconnect = useCallback(() => {
     setAddress(null);
-    safeStorage.removeItem(STORAGE_KEY);
+    removeItem(STORAGE_KEY);
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -85,7 +86,7 @@ export function WalletProvider({
   // Rehydrate address from storage on mount (client only)
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const stored = safeStorage.getItem(STORAGE_KEY);
+    const stored = getItem(STORAGE_KEY);
     if (stored) {
       setAddress(stored);
     }
