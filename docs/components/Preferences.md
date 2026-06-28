@@ -76,6 +76,59 @@ export function PayoutAmount({ amount, currency }: { amount: number; currency: s
 
 ---
 
+## Security
+
+User preferences are persisted to `localStorage` and therefore are reachable by
+anything running in the page origin (including browser extensions, shared
+kiosks, or a previous tenant of a shared browser). To keep the hydrated state
+trustworthy, `PreferencesProvider` routes every read through the
+`sanitizePreferences(raw: unknown): UserPreferences` helper before handing the
+result to React state.
+
+`sanitizePreferences` is a pure, total function that:
+
+1. Rejects non-object payloads (`null`, primitives, arrays) and returns a fresh
+   copy of `DEFAULT_PREFERENCES` for them.
+2. Iterates **only the source's own enumerable keys** (`Object.keys`) so
+   keys inherited from a hostile prototype cannot reach the merge step.
+3. Drops `__proto__`, `constructor`, and `prototype` keys outright — keys
+   historically used to hijack prototypes via shallow merges.
+4. Whitelists exactly `{ theme, amountFormat, toastDensity, quietMode }` and
+   validates each candidate value against its allowed set:
+   - `theme` ∈ `'light' | 'dark' | 'system'`
+   - `amountFormat` ∈ `'usd' | 'ngn' | 'compact'`
+   - `toastDensity` ∈ `'relaxed' | 'compact'`
+   - `quietMode` must be a literal `boolean` (not truthy coercibles like
+     `1`, `'true'`, or objects).
+5. Falls back to `DEFAULT_PREFERENCES` for any invalid or unknown value — the
+   hydrating effect then composes `{ ...DEFAULT_PREFERENCES, ...sanitized }`,
+   which is safe by construction because `DEFAULT_PREFERENCES` carries every
+   known key with a verified value.
+
+The original `try / catch` is preserved, so a malformed JSON string still
+falls back to defaults rather than throwing.
+
+### Threat model
+
+| Threat                                          | Mitigation                                                |
+|-------------------------------------------------|-----------------------------------------------------------|
+| Tampered `localStorage` value with unknown keys | Whitelisting — unknown keys are silently dropped          |
+| Invalid enum values driving rendering           | Per-field allow-list validation                           |
+| `__proto__` pollution via spread/Object.assign  | Explicit rejection of `__proto__` during sanitization     |
+| `constructor` / `prototype` pollution           | Explicit rejection of these dangerous key names           |
+| `quietMode` truthy coercion (`1`, `"true"`)     | Strict `typeof === 'boolean'` check                       |
+| Inherited keys on attacker objects              | `Object.keys` enumerates own enumerable keys only         |
+| Non-object payloads (arrays, primitives, null)  | Early-return with `DEFAULT_PREFERENCES`                   |
+
+### Usage notes
+
+- The sanitizer is exported so it can be unit-tested in isolation.
+- Re-saving sanitized preferences back to `localStorage` guarantees the
+  stored payload contains only the four known keys, so a corrupt value can
+  eventually self-heal once the user changes any preference.
+
+---
+
 ## Testing
 
 File: `src/lib/__tests__/preferences.test.tsx`
