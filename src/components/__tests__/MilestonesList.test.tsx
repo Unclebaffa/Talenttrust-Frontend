@@ -9,6 +9,11 @@ const SAMPLE: Milestone[] = [
   { id: '2', title: 'Milestone 2', status: 'Completed', payout: 1000, currency: 'USD', dueDate: 'Jun 1, 2026' },
 ];
 
+const MISMATCHED: Milestone[] = [
+  { id: '1', title: 'Milestone 1', status: 'Pending', payout: 500, currency: 'USD', dueDate: 'May 10, 2026' },
+  { id: '2', title: 'Milestone 2', status: 'Completed', payout: 1000, currency: 'EUR', dueDate: 'Jun 1, 2026' },
+];
+
 const scrollRegion = (container: HTMLElement) =>
   container.querySelector('.max-h-\\[calc\\(100vh-260px\\)\\]') as HTMLElement;
 
@@ -88,5 +93,77 @@ describe('MilestonesList', () => {
   it('passes axe accessibility checks with an empty list', async () => {
     const { container } = render(<MilestonesList milestones={[]} />);
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  describe('currency mismatch warning', () => {
+    it('does not render warning when all milestones match contract currency', () => {
+      const { container } = render(
+        <MilestonesList milestones={SAMPLE} contractCurrency="USD" />,
+      );
+      expect(container.querySelector('[role="alert"]')).not.toBeInTheDocument();
+    });
+
+    it('does not render warning when contractCurrency is not provided', () => {
+      const { container } = render(
+        <MilestonesList milestones={MISMATCHED} />,
+      );
+      expect(container.querySelector('[role="alert"]')).not.toBeInTheDocument();
+    });
+
+    it('renders warning with role="alert" when a milestone currency mismatches', () => {
+      const { container } = render(
+        <MilestonesList milestones={MISMATCHED} contractCurrency="USD" />,
+      );
+      const alert = container.querySelector('[role="alert"]');
+      expect(alert).toBeInTheDocument();
+      expect(alert).toHaveTextContent('Currency mismatch');
+    });
+
+    it('shows singular text for a single mismatched milestone', () => {
+      render(
+        <MilestonesList milestones={MISMATCHED} contractCurrency="USD" />,
+      );
+      expect(screen.getByText(/1 milestone uses EUR instead of USD/i)).toBeInTheDocument();
+    });
+
+    it('shows plural text for multiple mismatched milestones', () => {
+      const multiMismatch: Milestone[] = [
+        { id: '1', title: 'M1', status: 'Pending', payout: 500, currency: 'EUR' },
+        { id: '2', title: 'M2', status: 'Pending', payout: 600, currency: 'EUR' },
+      ];
+      render(
+        <MilestonesList milestones={multiMismatch} contractCurrency="USD" />,
+      );
+      expect(screen.getByText(/2 milestones use EUR instead of USD/i)).toBeInTheDocument();
+    });
+
+    it('lists multiple distinct mismatched currencies', () => {
+      const multiCurrencyMismatch: Milestone[] = [
+        { id: '1', title: 'M1', status: 'Pending', payout: 500, currency: 'EUR' },
+        { id: '2', title: 'M2', status: 'Pending', payout: 600, currency: 'GBP' },
+      ];
+      render(
+        <MilestonesList milestones={multiCurrencyMismatch} contractCurrency="USD" />,
+      );
+      expect(screen.getByText(/2 milestones use EUR, GBP instead of USD/i)).toBeInTheDocument();
+    });
+
+    it('case-insensitive match does not trigger warning', () => {
+      const caseInsensitiveMismatch: Milestone[] = [
+        { id: '1', title: 'M1', status: 'Pending', payout: 500, currency: 'usd' },
+        { id: '2', title: 'M2', status: 'Pending', payout: 600, currency: 'Usd' },
+      ];
+      const { container } = render(
+        <MilestonesList milestones={caseInsensitiveMismatch} contractCurrency="USD" />,
+      );
+      expect(container.querySelector('[role="alert"]')).not.toBeInTheDocument();
+    });
+
+    it('passes axe accessibility check with mismatch warning visible', async () => {
+      const { container } = render(
+        <MilestonesList milestones={MISMATCHED} contractCurrency="USD" />,
+      );
+      expect(await axe(container)).toHaveNoViolations();
+    });
   });
 });

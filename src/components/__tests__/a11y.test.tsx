@@ -45,6 +45,29 @@ describe('a11y: MilestonesList', () => {
       />
     );
   });
+
+  it('currency mismatch warning has no violations', async () => {
+    await testA11y(
+      <MilestonesList
+        milestones={[
+          { id: '1', title: 'Research phase', status: 'Pending', payout: 500, currency: 'USD', dueDate: 'May 10, 2026' },
+          { id: '2', title: 'Development phase', status: 'Completed', payout: 1500, currency: 'EUR', dueDate: 'Jun 1, 2026' },
+        ]}
+        contractCurrency="USD"
+      />
+    );
+  });
+
+  it('single mismatched milestone warning has no violations', async () => {
+    await testA11y(
+      <MilestonesList
+        milestones={[
+          { id: '1', title: 'Payment', status: 'Pending', payout: 1000, currency: 'GBP' },
+        ]}
+        contractCurrency="USD"
+      />
+    );
+  });
 });
 
 describe('a11y: ContractSummary', () => {

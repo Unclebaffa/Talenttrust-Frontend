@@ -32,8 +32,9 @@ See [`docs/components/ContractProgress.md`](./ContractProgress.md) for the full 
 
 Props:
 - `milestones: Array<{ id: string; title: string; status: 'Pending' | 'Completed' | 'Paid' | 'Disputed'; payout: number; currency: string; dueDate?: string; }>`
+- `contractCurrency?: string` — optional contract-level currency. When provided, milestones whose currency differs (case-insensitive) trigger an accessible `role="alert"` warning banner near the milestones list identifying which and how many milestones mismatch.
 
-Description: Renders a scrollable milestone roster, each showing the title, due date, status, and payout amount.
+Description: Renders a scrollable milestone roster, each showing the title, due date, status, and payout amount. When `contractCurrency` is provided, the component uses `findCurrencyMismatches` from `src/lib/currencyMismatch.ts` to detect and surface currency mismatches.
 
 ### `ActionPanel`
 

@@ -1,5 +1,6 @@
 import StatusBadge, { StatusType } from './StatusBadge';
 import { usePreferences } from '@/lib/preferences';
+import { findCurrencyMismatches } from '@/lib/currencyMismatch';
 
 export type Milestone = {
   id: string;
@@ -12,10 +13,26 @@ export type Milestone = {
 
 export type MilestonesListProps = {
   milestones: Milestone[];
+  contractCurrency?: string;
 };
 
-const MilestonesList = ({ milestones }: MilestonesListProps) => {
+const MilestonesList = ({ milestones, contractCurrency }: MilestonesListProps) => {
   const { formatAmount } = usePreferences();
+
+  const mismatchedIds = contractCurrency
+    ? findCurrencyMismatches(contractCurrency, milestones)
+    : [];
+
+  const mismatchedCurrencies = contractCurrency
+    ? [...new Set(
+        milestones
+          .filter((m) => mismatchedIds.includes(m.id))
+          .map((m) => m.currency),
+      )]
+    : [];
+
+  const shouldWarn = mismatchedIds.length > 0;
+
   return (
     <section aria-labelledby="milestones-title" className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-center justify-between gap-4">
@@ -24,6 +41,21 @@ const MilestonesList = ({ milestones }: MilestonesListProps) => {
         </h2>
         <span id="milestones-count" className="text-sm text-slate-500">{milestones.length} total</span>
       </div>
+
+      {shouldWarn && (
+        <div
+          role="alert"
+          className="mt-4 rounded-2xl border border-[var(--status-warning-bg)] bg-[var(--status-warning-bg)] px-4 py-3 text-sm text-[var(--status-warning-foreground)]"
+        >
+          <span className="font-medium">
+            Currency mismatch:{' '}
+          </span>
+          {mismatchedIds.length === 1
+            ? `1 milestone uses ${mismatchedCurrencies.join(', ')} instead of ${contractCurrency}`
+            : `${mismatchedIds.length} milestones use ${mismatchedCurrencies.join(', ')} instead of ${contractCurrency}`
+          }
+        </div>
+      )}
 
       {/*
         Keyboard Accessibility (WCAG 2.1.1):
