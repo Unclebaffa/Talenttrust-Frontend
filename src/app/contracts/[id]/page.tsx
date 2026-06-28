@@ -242,6 +242,7 @@ const ContractDetailPageContent = ({ id }: { id: string }) => {
               onViewSummary={handleViewSummary}
               isLoading={isLoading || isPersistingStatus}
               errorMessage={errorMessage || undefined}
+              disputeFlow="confirm"
             />
           </div>
         </div>
