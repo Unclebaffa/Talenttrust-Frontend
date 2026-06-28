@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import ActionPanel from '../ActionPanel';
 import { useWallet } from '@/contexts/WalletContext';
 import { useToast } from '@/components/toast/toast-provider';
+import { assertNoA11yViolations } from '@/test-utils/a11y';
 
 const mockShowSuccess = jest.fn();
 
@@ -845,5 +846,19 @@ describe('inline dispute form — character counter live region', () => {
     // Close form
     await user.click(screen.getByRole('button', { name: /cancel/i }));
     expect(document.getElementById('dispute-reason-counter')).toBeNull();
+  });
+
+  it('should have no accessibility violations in default state and when dispute form is open', async () => {
+    const { container } = render(<ActionPanel status="Active" onDispute={jest.fn()} />);
+
+    // Check default state
+    await assertNoA11yViolations(container);
+
+    // Open dispute form
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /open a dispute for this contract/i }));
+
+    // Check with dispute form open
+    await assertNoA11yViolations(container);
   });
 });
