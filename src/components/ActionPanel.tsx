@@ -68,6 +68,8 @@ const DISPUTE_REASON_MAX_LENGTH = 500;
 
 const DISPUTE_REASON_ERROR_ID = 'dispute-reason-error';
 const DISPUTE_REASON_HINT_ID = 'dispute-reason-hint';
+const DISPUTE_REASON_COUNTER_ID = 'dispute-reason-counter';
+const DISPUTE_REASON_ASSERTIVE_THRESHOLD = 50;
 
 const getActionButtons = (status: ActionPanelProps['status']) => {
   if (status === 'Active') return ['Submit Milestone', 'Release Funds', 'Dispute'];
@@ -154,6 +156,7 @@ const ActionPanel = ({
   const [disputeFormOpen, setDisputeFormOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeReasonError, setDisputeReasonError] = useState('');
+  const [liveAnnouncement, setLiveAnnouncement] = useState('');
   const disputeTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const disputeTriggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -188,6 +191,35 @@ const ActionPanel = ({
       disputeTextareaRef.current?.focus();
     }
   }, [disputeFormOpen]);
+
+  // Manage debounced/throttled screen reader announcements for character count
+  useEffect(() => {
+    if (!disputeFormOpen) {
+      setLiveAnnouncement('');
+      return;
+    }
+
+    const remaining = DISPUTE_REASON_MAX_LENGTH - disputeReason.length;
+    const announcement = `${remaining} / ${DISPUTE_REASON_MAX_LENGTH} characters remaining`;
+
+    const isBoundary = (chars: number) => {
+      if (chars <= 0) return true;
+      if (chars <= 10) return true;
+      if (chars <= 50) return chars % 10 === 0;
+      return chars % 50 === 0;
+    };
+
+    if (isBoundary(remaining)) {
+      setLiveAnnouncement(announcement);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setLiveAnnouncement(announcement);
+    }, 1000);
+
+    return () => clearTimeout(timeoutId);
+  }, [disputeReason, disputeFormOpen]);
 
   const handleDisputeReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -384,8 +416,8 @@ const ActionPanel = ({
                     aria-required="true"
                     aria-describedby={
                       disputeReasonError
-                        ? `${DISPUTE_REASON_ERROR_ID} ${DISPUTE_REASON_HINT_ID}`
-                        : DISPUTE_REASON_HINT_ID
+                        ? `${DISPUTE_REASON_ERROR_ID} ${DISPUTE_REASON_HINT_ID} ${DISPUTE_REASON_COUNTER_ID}`
+                        : `${DISPUTE_REASON_HINT_ID} ${DISPUTE_REASON_COUNTER_ID}`
                     }
                     aria-invalid={disputeReasonError ? 'true' : undefined}
                     placeholder="Explain why you are opening this dispute…"
@@ -396,17 +428,25 @@ const ActionPanel = ({
                     }`}
                   />
 
-                  {/* Live character counter — aria-live so screen readers
-                      announce the remaining count as the user types. */}
+                  {/* Visual character counter - not a live region to avoid double reading */}
                   <p
-                    aria-live="polite"
-                    aria-atomic="true"
+                    aria-hidden="true"
                     className={`mt-1 text-xs text-right ${
                       isOverLimit ? 'text-rose-600 font-semibold' : 'text-slate-500'
                     }`}
                   >
                     {remainingChars} / {DISPUTE_REASON_MAX_LENGTH} characters remaining
                   </p>
+
+                  {/* Visually hidden live region for screen readers */}
+                  <div
+                    id={DISPUTE_REASON_COUNTER_ID}
+                    aria-live={remainingChars <= DISPUTE_REASON_ASSERTIVE_THRESHOLD ? 'assertive' : 'polite'}
+                    aria-atomic="true"
+                    className="sr-only"
+                  >
+                    {liveAnnouncement}
+                  </div>
 
                   {/* Validation error — linked to the textarea via aria-describedby */}
                   {disputeReasonError && (
