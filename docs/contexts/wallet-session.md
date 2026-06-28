@@ -89,4 +89,73 @@ The timer is reset back to zero on any of the following **five activity events**
 ### Cleanup
 * When the wallet is disconnected manually or the session expires, all event listeners are unregistered from the `window` object and the timeout timer is cleared to prevent memory leaks.
 
+---
+
+## Toast Notifications & Fallback Mechanism
+
+When the session expires due to inactivity, the user is notified with a success-level toast alert.
+
+### Session Expired Message
+* **Title:** `"Session expired"`
+* **Description:** `"You have been disconnected due to inactivity."`
+
+### Safe Toast Fallback
+The [`WalletProvider`](file:///c:/Users/USER/Desktop/Talenttrust-Frontend/src/contexts/WalletContext.tsx#L31) is designed to operate robustly even if it is mounted outside the [`ToastProvider`](file:///c:/Users/USER/Desktop/Talenttrust-Frontend/src/components/toast/toast-provider.tsx). 
+
+To prevent context resolution errors from crashing the app, it wraps the [`useToast`](file:///c:/Users/USER/Desktop/Talenttrust-Frontend/src/components/toast/toast-provider.tsx) hook in a safe wrapper:
+
+```typescript
+const useSafeToast = () => {
+  try {
+    return useToast();
+  } catch {
+    return { showSuccess: () => {} };
+  }
+};
+```
+
+If the [`ToastProvider`](file:///c:/Users/USER/Desktop/Talenttrust-Frontend/src/components/toast/toast-provider.tsx) is missing in the component tree, the application falls back to a no-op handler (`showSuccess: () => {}`), ensuring that the auto-disconnect lifecycle continues to work silently without throwing an exception.
+
+---
+
+## Wallet Context API & Connection State
+
+The [`useWallet`](file:///c:/Users/USER/Desktop/Talenttrust-Frontend/src/contexts/WalletContext.tsx#L147) hook exposes the connection methods, error states, and session status to components:
+
+```typescript
+export type WalletContextType = {
+  address: string | null;
+  isConnecting: boolean;
+  error: string | null;
+  connect: () => Promise<void>;
+  disconnect: () => void;
+};
+```
+
+### Mocked Stellar Address & Freighter Integration
+Because full integration with the Freighter browser wallet is pending, the provider currently mocks the wallet connection using a hardcoded Stellar G-address:
+* **Mock Address:** [`MOCKED_STELLAR_ADDRESS`](file:///c:/Users/USER/Desktop/Talenttrust-Frontend/src/contexts/WalletContext.tsx#L19) = `'GAAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQDZ7H'`.
+
+### Methods and State
+
+#### 1. [`connect`](file:///c:/Users/USER/Desktop/Talenttrust-Frontend/src/contexts/WalletContext.tsx#L114)
+An asynchronous function that triggers the wallet connection:
+1. Sets [`isConnecting`](file:///c:/Users/USER/Desktop/Talenttrust-Frontend/src/contexts/WalletContext.tsx#L9) to `true` and clears any previous [`error`](file:///c:/Users/USER/Desktop/Talenttrust-Frontend/src/contexts/WalletContext.tsx#L10).
+2. Simulates an asynchronous connection latency of `1000ms`.
+3. Sets the wallet address state to the mocked Stellar G-address.
+4. Stores the address in persistence under the `wallet_connected_address` key.
+5. Sets [`isConnecting`](file:///c:/Users/USER/Desktop/Talenttrust-Frontend/src/contexts/WalletContext.tsx#L9) back to `false`.
+
+#### 2. [`disconnect`](file:///c:/Users/USER/Desktop/Talenttrust-Frontend/src/contexts/WalletContext.tsx#L56)
+A synchronous function that clears the active session:
+1. Resets the address state to `null`.
+2. Removes the `wallet_connected_address` key from storage.
+3. Clears any active timeout timers (`timerRef.current`) and unsubscribes the event listeners.
+
+#### 3. [`error`](file:///c:/Users/USER/Desktop/Talenttrust-Frontend/src/contexts/WalletContext.tsx#L10)
+A string state (or `null`) that stores any connection failure message. Currently defaults to `null`, but is reserved for Freighter error cases such as:
+* User rejecting connection prompts.
+* Freighter extension not installed.
+
+
 
