@@ -118,7 +118,6 @@ const ActionPanel = ({
 
   // ── Submit / Release confirmation dialog state ───────────────────────────
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
-  const previousConfirmActionRef = useRef<ConfirmAction>(null);
 
   /**
    * Holds a reference to the button that opened the confirmation dialog or the
@@ -172,11 +171,16 @@ const ActionPanel = ({
     setDisputeFormOpen(false);
     setDisputeReason('');
     setDisputeReasonError('');
-    // Defer so the button is re-enabled in the DOM before focus is applied.
-    requestAnimationFrame(() => {
-      disputeTriggerRef.current?.focus();
-    });
   };
+
+  // Restore focus to the Dispute button after the inline form closes.
+  const previousDisputeFormOpenRef = useRef(false);
+  useEffect(() => {
+    if (previousDisputeFormOpenRef.current && !disputeFormOpen) {
+      disputeTriggerRef.current?.focus();
+    }
+    previousDisputeFormOpenRef.current = disputeFormOpen;
+  }, [disputeFormOpen]);
 
   // Move focus into the textarea when the form becomes visible.
   useEffect(() => {
