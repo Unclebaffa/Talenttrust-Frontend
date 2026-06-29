@@ -118,7 +118,6 @@ const ActionPanel = ({
 
   // ── Submit / Release confirmation dialog state ───────────────────────────
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
-  const previousConfirmActionRef = useRef<ConfirmAction>(null);
 
   /**
    * Holds a reference to the button that opened the confirmation dialog or the

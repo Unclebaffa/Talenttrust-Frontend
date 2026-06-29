@@ -829,12 +829,8 @@ describe('toast action button', () => {
     const onActionClick = jest.fn(() => callOrder.push('action'));
 
     function OrderHarness() {
-      const { showSuccess, dismissToast } = useToast();
+      const { showSuccess } = useToast();
       // We can't spy on dismissToast directly, so we proxy it.
-      const wrappedDismiss = (id: string) => {
-        callOrder.push('dismiss');
-        dismissToast(id);
-      };
       return (
         <button
           type="button"
