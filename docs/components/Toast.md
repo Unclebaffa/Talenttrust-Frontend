@@ -18,7 +18,7 @@ Transient notification system for success and error feedback. Supports auto-dism
 </PreferencesProvider>
 ```
 
-`ToastProvider` must be mounted as a child of `PreferencesProvider` because it reads `quietMode` and `toastDensity` from `usePreferences()`.
+`ToastProvider` must be mounted as a child of `PreferencesProvider` because it reads `quietMode`, `toastDensity`, and `toastDuration` from `usePreferences()`.
 
 There is only one viewport. All active toasts stack vertically in a single column fixed to the top-right of the viewport.
 
@@ -68,7 +68,8 @@ type ToastContextValue = {
 |---|---|---|---|---|
 | `title` | `string` | Yes | — | Bold heading displayed inside the toast panel |
 | `description` | `string` | No | — | Secondary text below the title |
-| `duration` | `number` | No | `5000` | Milliseconds before auto-dismiss. Passed to `window.setTimeout` |
+| `duration` | `number` | No | *(preference)* | Milliseconds before auto-dismiss. Overrides `toastDuration` preference when supplied. Passed directly to `window.setTimeout` |
+| `action` | `ToastAction` | No | — | Inline action button (`{ label, onClick }`) |
 
 ## Return values
 
@@ -100,6 +101,23 @@ To set quiet mode, use `updatePreference('quietMode', true)` from `usePreference
 
 Set via `updatePreference('toastDensity', 'compact')` from `usePreferences()`.
 
+## Duration preference
+
+`UserPreferences.toastDuration` sets the **default** auto-dismiss duration used when a toast does not supply an explicit `duration`:
+
+| Value | Duration | Behaviour |
+|---|---|---|
+| `'short'` | 2 500 ms | Fast, low-priority confirmations |
+| `'normal'` (default) | 5 000 ms | Matches legacy hard-coded behaviour |
+| `'long'` | 10 000 ms | For complex messages or slow readers |
+| `'persistent'` | ∞ | No timer; toast stays until manually closed |
+
+A per-call `toast.duration` **always overrides** the preference. For example, even when the preference is `'persistent'`, passing `duration: 2000` will schedule a 2 s auto-dismiss for that specific toast.
+
+Persistent toasts remain fully keyboard accessible: the dismiss button (`×`) carries `aria-label="Dismiss … notification"` and receives a focus ring via `focus-visible:ring-2`.
+
+Set via `updatePreference('toastDuration', 'persistent')` from `usePreferences()`.
+
 ## Announcer roles
 
 `ToastAnnouncer` renders two screen-reader-only `<div>` elements inside the provider:
@@ -126,7 +144,10 @@ Only the **latest** toast of each variant is announced, not the entire stack.
 
 ## Auto-dismiss behavior
 
-- Every toast starts a `window.setTimeout` equal to `duration` (default `5000` ms).
+- Every toast starts a `window.setTimeout` equal to its effective duration.
+  - If `toast.duration` is supplied at call time, that value is used as-is.
+  - Otherwise the `toastDuration` preference resolves to a duration via `DURATION_MAP` (`short` → 2 500 ms, `normal` → 5 000 ms, `long` → 10 000 ms, `persistent` → no timer).
+- **Persistent toasts** (`toastDuration: 'persistent'` with no per-call override) skip `scheduleToastDismiss` entirely; they remain visible until the user dismisses them.
 - Timer **pauses** while the toast is hovered (`mouseenter`/`mouseleave`) or the dismiss button is focused (`focus`/`blur`).
 - Stacked hover and focus events use a counter so the timer only resumes when **both** interactions end.
 - If a toast is dismissed manually, its timer is cleaned up immediately.
@@ -244,6 +265,6 @@ export function SessionMonitor() {
 | `useToast` throws "must be used within a ToastProvider" | Component is rendered outside `<ToastProvider>` |
 | Success toasts are not appearing | `quietMode` is `true` in user preferences; `showSuccess` returns `'suppressed'` |
 | Toasts dismiss immediately | `duration` is set too low (below ~500ms) |
-| Toasts never dismiss | `duration` is set to a very large value; try manual dismissal via `dismissToast(id)` |
+| Toasts never dismiss | `toastDuration` preference is `'persistent'`, or `duration` is a very large value; use the dismiss button or `dismissToast(id)` to remove them |
 | Screen reader announces stale toast | Only the **latest** toast per variant is announced; dismiss stale toasts before showing new ones |
 | ESLint warns about `preferences.quietMode` dependency | `showSuccess` already includes it in its dependency array; no action needed |

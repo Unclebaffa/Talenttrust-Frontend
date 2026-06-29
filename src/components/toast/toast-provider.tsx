@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react';
 import { usePreferences } from '@/lib/preferences';
+import type { ToastDuration } from '@/lib/preferences';
 
 type ToastVariant = 'success' | 'error';
 
@@ -46,7 +47,17 @@ type ToastContextValue = {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-const DEFAULT_DURATION = 5000;
+
+/**
+ * Maps each `ToastDuration` preference value to a concrete millisecond count,
+ * or `null` for `'persistent'` (no auto-dismiss timer).
+ */
+const DURATION_MAP: Readonly<Record<ToastDuration, number | null>> = {
+  short: 2500,
+  normal: 5000,
+  long: 10000,
+  persistent: null,
+};
 
 /**
  * Maximum number of toasts that may be visible at the same time.
@@ -216,7 +227,7 @@ type ToastTimerState = {
  * Provides toast notification context to the component tree.
  *
  * Must be mounted inside `<PreferencesProvider>` because it reads
- * `quietMode` and `toastDensity` from user preferences.
+ * `quietMode`, `toastDensity`, and `toastDuration` from user preferences.
  *
  * Renders two companion elements:
  * - **ToastViewport** – fixed top-right column stacking visible toasts.
@@ -245,6 +256,22 @@ type ToastTimerState = {
  * `preferences.toastDensity` controls the vertical gap between stacked toasts:
  * - `'relaxed'` (default) → `gap-3` (12px)
  * - `'compact'` → `gap-1.5` (6px)
+ *
+ * ## Duration preference
+ *
+ * `preferences.toastDuration` sets the **default** auto-dismiss duration when a
+ * toast does not supply an explicit `duration`:
+ *
+ * | Value          | Duration  | Behaviour                       |
+ * |----------------|-----------|---------------------------------|
+ * | `'short'`      | 2 500 ms  | Fast, low-priority confirmation |
+ * | `'normal'`     | 5 000 ms  | Default — legacy behaviour      |
+ * | `'long'`       | 10 000 ms | Longer read time                |
+ * | `'persistent'` | ∞         | No timer; manual dismiss only   |
+ *
+ * A per-call `toast.duration` value **always overrides** the preference,
+ * including `'persistent'` (a caller-supplied `duration: 0` schedules a timer
+ * for 0 ms).
  *
  * ## Action button
  *
@@ -354,12 +381,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 
   const createToast = useCallback(
-    (variant: ToastVariant, toast: ToastInput) => {
+    (variant: ToastVariant, toast: ToastInput, durationMs: number | null) => {
       const id = generateToastId();
-      const duration = toast.duration ?? DEFAULT_DURATION;
 
       setToasts((currentToasts) => {
-        const next = [...currentToasts, { ...toast, duration, id, variant }];
+        const next = [...currentToasts, { ...toast, duration: durationMs ?? undefined, id, variant }];
         if (next.length <= MAX_VISIBLE_TOASTS) {
           return next;
         }
@@ -381,14 +407,21 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       if (preferences.quietMode) {
         return 'suppressed';
       }
-      return createToast('success', toast);
+      // Per-call duration takes precedence; fall back to the preference mapping.
+      const durationMs =
+        toast.duration !== undefined ? toast.duration : DURATION_MAP[preferences.toastDuration];
+      return createToast('success', toast, durationMs);
     },
-    [createToast, preferences.quietMode],
+    [createToast, preferences.quietMode, preferences.toastDuration],
   );
 
   const showError = useCallback(
-    (toast: ToastInput) => createToast('error', toast),
-    [createToast],
+    (toast: ToastInput) => {
+      const durationMs =
+        toast.duration !== undefined ? toast.duration : DURATION_MAP[preferences.toastDuration];
+      return createToast('error', toast, durationMs);
+    },
+    [createToast, preferences.toastDuration],
   );
 
   useEffect(() => {
@@ -397,7 +430,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      scheduleToastDismiss(toast.id, toast.duration ?? DEFAULT_DURATION);
+      // `toast.duration` on the record is the resolved duration computed at
+      // creation time (number | undefined). `undefined` means the toast was
+      // created with `toastDuration: 'persistent'` — skip scheduling.
+      if (toast.duration === undefined || toast.duration === null) {
+        return;
+      }
+
+      scheduleToastDismiss(toast.id, toast.duration);
     });
 
     Object.keys(toastTimersRef.current).forEach((toastId) => {

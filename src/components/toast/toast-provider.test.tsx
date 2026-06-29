@@ -995,3 +995,380 @@ describe('toast action button', () => {
     expect(errorId).toMatch(/^toast-/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// toastDuration preference
+// ---------------------------------------------------------------------------
+
+describe('toastDuration preference', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    act(() => {
+      jest.clearAllTimers();
+    });
+    jest.useRealTimers();
+  });
+
+  // Helper: renders with a given toastDuration preference and a trigger button.
+  function DurationHarness({ variant = 'success' }: { variant?: 'success' | 'error' }) {
+    const { showSuccess, showError } = useToast();
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          if (variant === 'success') {
+            showSuccess({ title: 'Duration test' });
+          } else {
+            showError({ title: 'Duration error test' });
+          }
+        }}
+      >
+        Trigger
+      </button>
+    );
+  }
+
+  it("'normal' (default) auto-dismisses at 5000ms", async () => {
+    render(
+      <ToastProvider>
+        <DurationHarness />
+      </ToastProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /trigger/i }));
+    expect(screen.getByRole('status')).toBeInTheDocument();
+
+    act(() => { jest.advanceTimersByTime(4999); });
+    expect(screen.getByRole('status')).toBeInTheDocument();
+
+    act(() => { jest.advanceTimersByTime(1); });
+    await waitFor(() => {
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+  });
+
+  it("'short' auto-dismisses at 2500ms", async () => {
+    localStorage.setItem(
+      'talenttrust-user-preferences',
+      JSON.stringify({ toastDuration: 'short' }),
+    );
+
+    render(
+      <PreferencesProvider>
+        <ToastProvider>
+          <DurationHarness />
+        </ToastProvider>
+      </PreferencesProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /trigger/i }));
+    expect(screen.getByRole('status')).toBeInTheDocument();
+
+    act(() => { jest.advanceTimersByTime(2499); });
+    expect(screen.getByRole('status')).toBeInTheDocument();
+
+    act(() => { jest.advanceTimersByTime(1); });
+    await waitFor(() => {
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+  });
+
+  it("'long' auto-dismisses at 10000ms", async () => {
+    localStorage.setItem(
+      'talenttrust-user-preferences',
+      JSON.stringify({ toastDuration: 'long' }),
+    );
+
+    render(
+      <PreferencesProvider>
+        <ToastProvider>
+          <DurationHarness />
+        </ToastProvider>
+      </PreferencesProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /trigger/i }));
+    expect(screen.getByRole('status')).toBeInTheDocument();
+
+    act(() => { jest.advanceTimersByTime(9999); });
+    expect(screen.getByRole('status')).toBeInTheDocument();
+
+    act(() => { jest.advanceTimersByTime(1); });
+    await waitFor(() => {
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+  });
+
+  it("'persistent' — toast never auto-dismisses", async () => {
+    localStorage.setItem(
+      'talenttrust-user-preferences',
+      JSON.stringify({ toastDuration: 'persistent' }),
+    );
+
+    render(
+      <PreferencesProvider>
+        <ToastProvider>
+          <DurationHarness />
+        </ToastProvider>
+      </PreferencesProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /trigger/i }));
+    expect(screen.getByRole('status')).toBeInTheDocument();
+
+    // Advance well past any normal timeout.
+    act(() => { jest.advanceTimersByTime(60000); });
+
+    // Toast must still be visible.
+    expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
+  it("'persistent' — toast is dismissible via the dismiss button", async () => {
+    localStorage.setItem(
+      'talenttrust-user-preferences',
+      JSON.stringify({ toastDuration: 'persistent' }),
+    );
+
+    render(
+      <PreferencesProvider>
+        <ToastProvider>
+          <DurationHarness />
+        </ToastProvider>
+      </PreferencesProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /trigger/i }));
+    expect(screen.getByRole('status')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /dismiss success notification/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+  });
+
+  it("'persistent' — toast is dismissible via keyboard (Enter on dismiss button)", async () => {
+    localStorage.setItem(
+      'talenttrust-user-preferences',
+      JSON.stringify({ toastDuration: 'persistent' }),
+    );
+
+    render(
+      <PreferencesProvider>
+        <ToastProvider>
+          <DurationHarness />
+        </ToastProvider>
+      </PreferencesProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /trigger/i }));
+    const dismissBtn = screen.getByRole('button', { name: /dismiss success notification/i });
+    dismissBtn.focus();
+    fireEvent.keyDown(dismissBtn, { key: 'Enter', code: 'Enter' });
+    fireEvent.click(dismissBtn); // browser fires click on Enter for buttons
+
+    await waitFor(() => {
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+  });
+
+  it('per-call duration overrides the persistent preference', async () => {
+    localStorage.setItem(
+      'talenttrust-user-preferences',
+      JSON.stringify({ toastDuration: 'persistent' }),
+    );
+
+    function OverrideHarness() {
+      const { showSuccess } = useToast();
+      return (
+        <button
+          type="button"
+          onClick={() => showSuccess({ title: 'Override', duration: 1000 })}
+        >
+          Trigger
+        </button>
+      );
+    }
+
+    render(
+      <PreferencesProvider>
+        <ToastProvider>
+          <OverrideHarness />
+        </ToastProvider>
+      </PreferencesProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /trigger/i }));
+    expect(screen.getByRole('status')).toBeInTheDocument();
+
+    act(() => { jest.advanceTimersByTime(999); });
+    expect(screen.getByRole('status')).toBeInTheDocument();
+
+    act(() => { jest.advanceTimersByTime(1); });
+    await waitFor(() => {
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+  });
+
+  it('per-call duration overrides the long preference', async () => {
+    localStorage.setItem(
+      'talenttrust-user-preferences',
+      JSON.stringify({ toastDuration: 'long' }),
+    );
+
+    function ShortOverrideHarness() {
+      const { showSuccess } = useToast();
+      return (
+        <button
+          type="button"
+          onClick={() => showSuccess({ title: 'Short override', duration: 500 })}
+        >
+          Trigger
+        </button>
+      );
+    }
+
+    render(
+      <PreferencesProvider>
+        <ToastProvider>
+          <ShortOverrideHarness />
+        </ToastProvider>
+      </PreferencesProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /trigger/i }));
+    expect(screen.getByRole('status')).toBeInTheDocument();
+
+    act(() => { jest.advanceTimersByTime(500); });
+    await waitFor(() => {
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+  });
+
+  it('invalid stored toastDuration falls back to normal (5000ms)', async () => {
+    localStorage.setItem(
+      'talenttrust-user-preferences',
+      JSON.stringify({ toastDuration: 'forever' }),
+    );
+
+    render(
+      <PreferencesProvider>
+        <ToastProvider>
+          <DurationHarness />
+        </ToastProvider>
+      </PreferencesProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /trigger/i }));
+    expect(screen.getByRole('status')).toBeInTheDocument();
+
+    act(() => { jest.advanceTimersByTime(4999); });
+    expect(screen.getByRole('status')).toBeInTheDocument();
+
+    act(() => { jest.advanceTimersByTime(1); });
+    await waitFor(() => {
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+  });
+
+  it('persistent + quietMode: success toast is still suppressed', () => {
+    localStorage.setItem(
+      'talenttrust-user-preferences',
+      JSON.stringify({ toastDuration: 'persistent', quietMode: true }),
+    );
+
+    let result: string | null = null;
+
+    function PersistentQuietHarness() {
+      const { showSuccess } = useToast();
+      return (
+        <button
+          type="button"
+          onClick={() => { result = showSuccess({ title: 'Silent persistent' }); }}
+        >
+          Trigger
+        </button>
+      );
+    }
+
+    render(
+      <PreferencesProvider>
+        <ToastProvider>
+          <PersistentQuietHarness />
+        </ToastProvider>
+      </PreferencesProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /trigger/i }));
+
+    expect(result).toBe('suppressed');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('persistent + quietMode: error toast is still shown and stays without auto-dismiss', async () => {
+    localStorage.setItem(
+      'talenttrust-user-preferences',
+      JSON.stringify({ toastDuration: 'persistent', quietMode: true }),
+    );
+
+    render(
+      <PreferencesProvider>
+        <ToastProvider>
+          <DurationHarness variant="error" />
+        </ToastProvider>
+      </PreferencesProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /trigger/i }));
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    act(() => { jest.advanceTimersByTime(60000); });
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+  });
+
+  it('MAX_VISIBLE_TOASTS eviction still works with persistent preference', () => {
+    localStorage.setItem(
+      'talenttrust-user-preferences',
+      JSON.stringify({ toastDuration: 'persistent' }),
+    );
+
+    function PersistentMultiHarness({ count }: { count: number }) {
+      const { showSuccess } = useToast();
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            for (let i = 1; i <= count; i++) {
+              showSuccess({ title: `PToast ${i}` });
+            }
+          }}
+        >
+          Add toasts
+        </button>
+      );
+    }
+
+    render(
+      <PreferencesProvider>
+        <ToastProvider>
+          <PersistentMultiHarness count={5} />
+        </ToastProvider>
+      </PreferencesProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /add toasts/i }));
+
+    // After adding 5, only 4 should be visible (oldest evicted).
+    expect(screen.getAllByRole('status')).toHaveLength(4);
+    expect(screen.queryAllByText('PToast 1', { selector: 'p' })).toHaveLength(0);
+    expect(screen.getAllByText('PToast 5', { selector: 'p' })).toHaveLength(1);
+
+    // Advance time — none should auto-dismiss (all persistent).
+    act(() => { jest.advanceTimersByTime(60000); });
+    expect(screen.getAllByRole('status')).toHaveLength(4);
+  });
+});
