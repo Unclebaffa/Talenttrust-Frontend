@@ -182,32 +182,45 @@ const ActionPanel = ({
     setDisputeFormOpen(true);
   };
 
-  const closeDisputeForm = () => {
-    setDisputeFormOpen(false);
-    setDisputeReason('');
-    setDisputeReasonError('');
-  };
+  const previousDisputeFormOpenRef = useRef(false);
 
-  // Move focus into the textarea when the form becomes visible.
+  // Move focus into the textarea when the form becomes visible, or restore focus when it closes.
   useEffect(() => {
     if (disputeFormOpen) {
       disputeTextareaRef.current?.focus();
-    } else if (shouldRestoreDisputeFocusRef.current) {
-      shouldRestoreDisputeFocusRef.current = false;
-      disputeButtonRef.current?.focus();
+    } else if (previousDisputeFormOpenRef.current) {
+      // Form was closed, restore focus to the button that opened it.
+      const triggerButton = disputeTriggerRef.current;
+      if (triggerButton && document.contains(triggerButton) && !triggerButton.disabled) {
+        triggerButton.focus();
+      } else {
+        panelRef.current?.focus();
+      }
     }
-
     previousDisputeFormOpenRef.current = disputeFormOpen;
   }, [disputeFormOpen]);
+
+  useEffect(() => {
+    const wasDialogOpen = previousConfirmActionRef.current !== null;
+
+    if (wasDialogOpen && confirmAction === null) {
+      const triggerButton = triggerElementRef.current;
+
+      if (triggerButton && document.contains(triggerButton) && !triggerButton.disabled) {
+        triggerButton.focus();
+      } else {
+        panelRef.current?.focus();
+      }
+    }
+
+    previousConfirmActionRef.current = confirmAction;
+  }, [confirmAction]);
+
   /** Closes the inline form and returns focus to the button that opened it. */
   const closeDisputeForm = () => {
     setDisputeFormOpen(false);
     setDisputeReason('');
     setDisputeReasonError('');
-    // Defer so the button is re-enabled in the DOM before focus is applied.
-    setTimeout(() => {
-      disputeTriggerRef.current?.focus();
-    }, 0);
   };
 
   const handleDisputeReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -366,6 +379,9 @@ const ActionPanel = ({
               Dispute
             </button>
 
+            {/* Inline dispute reason form — rendered below the trigger button,
+                visible only when the user clicks "Dispute". The form is not a
+                modal so the rest of the page remains accessible. */}
             {disputeFormOpen && (
               <div
                 id="dispute-reason-form"
@@ -380,6 +396,7 @@ const ActionPanel = ({
                   Describe the reason for this dispute
                 </p>
 
+                {/* Screen-reader hint linked via aria-describedby */}
                 <span id={DISPUTE_REASON_HINT_ID} className="sr-only">
                   Enter a reason between 1 and {DISPUTE_REASON_MAX_LENGTH} characters.
                   This cannot be undone.
@@ -419,6 +436,8 @@ const ActionPanel = ({
                     }`}
                   />
 
+                  {/* Live character counter — aria-live so screen readers
+                      announce the remaining count as the user types. */}
                   <p
                     aria-live="polite"
                     aria-atomic="true"
@@ -429,6 +448,7 @@ const ActionPanel = ({
                     {remainingChars} / {DISPUTE_REASON_MAX_LENGTH} characters remaining
                   </p>
 
+                  {/* Validation error — linked to the textarea via aria-describedby */}
                   {disputeReasonError && (
                     <p
                       id={DISPUTE_REASON_ERROR_ID}
@@ -478,9 +498,9 @@ const ActionPanel = ({
           Dispute is handled by the inline form above. */}
       <ConfirmDialog
         isOpen={confirmAction !== null}
-        title={confirmAction ? CONFIRM_COPY[confirmAction].title : ''}
-        description={confirmAction ? CONFIRM_COPY[confirmAction].description : ''}
-        confirmLabel={confirmAction ? CONFIRM_COPY[confirmAction].confirmLabel : 'Confirm'}
+        title={confirmAction && confirmAction in CONFIRM_COPY ? CONFIRM_COPY[confirmAction as keyof typeof CONFIRM_COPY].title : ''}
+        description={confirmAction && confirmAction in CONFIRM_COPY ? CONFIRM_COPY[confirmAction as keyof typeof CONFIRM_COPY].description : ''}
+        confirmLabel={confirmAction && confirmAction in CONFIRM_COPY ? CONFIRM_COPY[confirmAction as keyof typeof CONFIRM_COPY].confirmLabel : 'Confirm'}
         cancelLabel="Cancel"
         onConfirm={handleConfirm}
         onCancel={handleCancel}

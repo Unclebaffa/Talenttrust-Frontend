@@ -652,9 +652,9 @@ describe('inline dispute form — validation', () => {
     await user.click(screen.getByRole('button', { name: /open a dispute for this contract/i }));
 
     const textarea = screen.getByRole('textbox', { name: /reason/i });
-    const maxChars = 'a'.repeat(500);
-    fireEvent.change(textarea, { target: { value: maxChars } });
-    await user.type(textarea, 'a');
+    // Use fireEvent to set the text close to the limit for performance, then type the last characters
+    fireEvent.change(textarea, { target: { value: 'a'.repeat(500) } });
+    await user.type(textarea, 'b');
 
     // The textarea value must be capped at 500 chars
     expect(textarea.value.length).toBeLessThanOrEqual(500);
