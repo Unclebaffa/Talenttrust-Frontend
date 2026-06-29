@@ -1,4 +1,4 @@
-import type { Milestone } from '../components/MilestonesList';
+
 
 /**
  * Parses a date string into a local Date object (setting the time to midnight local time)
