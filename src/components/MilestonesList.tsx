@@ -1,6 +1,7 @@
-import StatusBadge, { StatusType } from './StatusBadge';
+import StatusBadge, { StatusType, statusColorMap, statusIconMap } from './StatusBadge';
 import { usePreferences } from '@/lib/preferences';
-import { findCurrencyMismatches, normalizeCurrencyCode } from '@/lib/currencyMismatch';
+import { findCurrencyMismatches } from '@/lib/currencyMismatch';
+import { milestoneStatusTally } from '@/lib/milestoneStatusTally';
 
 export type Milestone = {
   id: string;
@@ -18,18 +19,22 @@ export type MilestonesListProps = {
 
 const MilestonesList = ({ milestones, contractCurrency }: MilestonesListProps) => {
   const { formatAmount } = usePreferences();
-  const mismatchedMilestoneIds = contractCurrency
-    ? new Set(findCurrencyMismatches(contractCurrency, milestones))
-    : new Set<string>();
-  const mismatchedMilestones = milestones.filter((milestone) =>
-    mismatchedMilestoneIds.has(milestone.id),
-  );
-  const mismatchCurrencies = Array.from(
-    new Set(mismatchedMilestones.map((milestone) => normalizeCurrencyCode(milestone.currency))),
-  ).sort();
-  const normalizedContractCurrency = contractCurrency
-    ? normalizeCurrencyCode(contractCurrency)
-    : undefined;
+
+  const mismatchedIds = contractCurrency
+    ? findCurrencyMismatches(contractCurrency, milestones)
+    : [];
+
+  const mismatchedCurrencies = contractCurrency
+    ? [...new Set(
+        milestones
+          .filter((m) => mismatchedIds.includes(m.id))
+          .map((m) => m.currency),
+      )]
+    : [];
+
+  const shouldWarn = mismatchedIds.length > 0;
+
+  const tallies = milestoneStatusTally(milestones);
 
   return (
     <section aria-labelledby="milestones-title" className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -40,25 +45,42 @@ const MilestonesList = ({ milestones, contractCurrency }: MilestonesListProps) =
         <span id="milestones-count" className="text-sm text-slate-500">{milestones.length} total</span>
       </div>
 
-      {normalizedContractCurrency && mismatchedMilestones.length > 0 ? (
+      {tallies.length > 0 && (
+        <div
+          role="list"
+          aria-label="Milestone status summary"
+          className="mt-4 flex flex-wrap gap-2"
+        >
+          {tallies.map(({ status, count }) => (
+            <span
+              key={status}
+              role="listitem"
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${statusColorMap[status]}`}
+            >
+              <span aria-hidden="true">{statusIconMap[status]}</span>
+              {status}
+              <span className="ml-0.5 rounded-full bg-white/40 px-1.5 py-0.5 text-[10px] font-bold leading-none">
+                {count}
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {shouldWarn && (
         <div
           role="alert"
-          className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
+          className="mt-4 rounded-2xl border border-[var(--status-warning-bg)] bg-[var(--status-warning-bg)] px-4 py-3 text-sm text-[var(--status-warning-foreground)]"
         >
-          <p className="font-semibold">
-            {mismatchedMilestones.length}{' '}
-            {mismatchedMilestones.length === 1 ? 'milestone uses' : 'milestones use'}{' '}
-            {mismatchCurrencies.join(', ')} instead of {normalizedContractCurrency}.
-          </p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            {mismatchedMilestones.map((milestone) => (
-              <li key={milestone.id}>
-                {milestone.title}: {formatAmount(milestone.payout, milestone.currency)}
-              </li>
-            ))}
-          </ul>
+          <span className="font-medium">
+            Currency mismatch:{' '}
+          </span>
+          {mismatchedIds.length === 1
+            ? `1 milestone uses ${mismatchedCurrencies.join(', ')} instead of ${contractCurrency}`
+            : `${mismatchedIds.length} milestones use ${mismatchedCurrencies.join(', ')} instead of ${contractCurrency}`
+          }
         </div>
-      ) : null}
+      )}
 
       {/*
         Keyboard Accessibility (WCAG 2.1.1):
