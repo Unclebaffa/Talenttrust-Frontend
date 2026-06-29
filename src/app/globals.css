@@ -113,4 +113,48 @@ body {
   .animate-spin {
     animation: none !important;
   }
+
+  /* Freeze the shimmer skeleton animation. The block remains visible as
+     a static grey placeholder so users with reduced-motion still perceive
+     the loading state without any movement. */
+  .animate-shimmer {
+    animation: none !important;
+    background-image: none !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Shimmer keyframe for LoadingSkeleton
+ *
+ * Creates a left-to-right highlight sweep using a CSS gradient and
+ * background-position animation. The gradient is positioned so the bright
+ * band starts off-screen to the left (-200% background-position) and
+ * travels to the right (200%). background-size is set to 200% so the sweep
+ * covers the full element width exactly once per cycle.
+ *
+ * This class is intentionally defined inside @layer utilities so Tailwind's
+ * purge process does not strip it, and so it can be overridden by any
+ * Tailwind utility class at the same specificity layer.
+ * --------------------------------------------------------------------------- */
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@layer utilities {
+  .animate-shimmer {
+    background-image: linear-gradient(
+      90deg,
+      #e2e8f0 0%,
+      #f1f5f9 40%,
+      #e2e8f0 60%,
+      #e2e8f0 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
 }
