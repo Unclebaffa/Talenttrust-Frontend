@@ -167,11 +167,22 @@ const ActionPanel = ({
     setDisputeFormOpen(true);
   };
 
-  // Move focus into the textarea when the form becomes visible.
+  const previousDisputeFormOpenRef = useRef(false);
+
+  // Move focus into the textarea when the form becomes visible, or restore focus when it closes.
   useEffect(() => {
     if (disputeFormOpen) {
       disputeTextareaRef.current?.focus();
+    } else if (previousDisputeFormOpenRef.current) {
+      // Form was closed, restore focus to the button that opened it.
+      const triggerButton = disputeTriggerRef.current;
+      if (triggerButton && document.contains(triggerButton) && !triggerButton.disabled) {
+        triggerButton.focus();
+      } else {
+        panelRef.current?.focus();
+      }
     }
+    previousDisputeFormOpenRef.current = disputeFormOpen;
   }, [disputeFormOpen]);
 
   useEffect(() => {
@@ -195,10 +206,6 @@ const ActionPanel = ({
     setDisputeFormOpen(false);
     setDisputeReason('');
     setDisputeReasonError('');
-    // Defer so the button is re-enabled in the DOM before focus is applied.
-    requestAnimationFrame(() => {
-      disputeTriggerRef.current?.focus();
-    });
   };
 
   const handleDisputeReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -331,17 +338,125 @@ const ActionPanel = ({
         )}
 
         {actions.includes('Dispute') && (
-          <button
-            type="button"
-            onClick={(event) => handleOpenConfirm('dispute', event)}
-            disabled={!isWalletConnected || isLoading || !!disabledReasons?.dispute}
-            title={!isWalletConnected ? noWalletMsg : undefined}
-            aria-label="Open a dispute for this contract"
-            aria-describedby={describedBy(describedById('dispute'))}
-            className={`w-full rounded-2xl bg-rose-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed ${focusRingClass}`}
-          >
-            Dispute
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={handleOpenDisputeForm}
+              disabled={
+                !isWalletConnected ||
+                isLoading ||
+                !!disabledReasons?.dispute ||
+                disputeFormOpen
+              }
+              title={!isWalletConnected ? noWalletMsg : undefined}
+              aria-label="Open a dispute for this contract"
+              aria-expanded={disputeFormOpen}
+              aria-controls={disputeFormOpen ? 'dispute-reason-form' : undefined}
+              aria-describedby={describedBy(describedById('dispute'))}
+              className={`w-full rounded-2xl bg-rose-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed ${focusRingClass}`}
+            >
+              Dispute
+            </button>
+
+            {/* Inline dispute reason form — rendered below the trigger button,
+                visible only when the user clicks "Dispute". The form is not a
+                modal so the rest of the page remains accessible. */}
+            {disputeFormOpen && (
+              <div
+                id="dispute-reason-form"
+                role="group"
+                aria-labelledby="dispute-form-heading"
+                className="rounded-2xl border border-rose-200 bg-rose-50 p-4 space-y-3"
+              >
+                <p
+                  id="dispute-form-heading"
+                  className="text-sm font-semibold text-rose-900"
+                >
+                  Describe the reason for this dispute
+                </p>
+
+                {/* Screen-reader hint linked via aria-describedby */}
+                <span id={DISPUTE_REASON_HINT_ID} className="sr-only">
+                  Enter a reason between 1 and {DISPUTE_REASON_MAX_LENGTH} characters.
+                  This cannot be undone.
+                </span>
+
+                <form onSubmit={handleDisputeSubmit} noValidate>
+                  <label
+                    htmlFor="dispute-reason-textarea"
+                    className="block text-xs font-medium text-rose-800 mb-1"
+                  >
+                    Reason{' '}
+                    <span aria-hidden="true" className="text-rose-600">
+                      *
+                    </span>
+                  </label>
+
+                  <textarea
+                    ref={disputeTextareaRef}
+                    id="dispute-reason-textarea"
+                    name="disputeReason"
+                    rows={4}
+                    maxLength={DISPUTE_REASON_MAX_LENGTH}
+                    value={disputeReason}
+                    onChange={handleDisputeReasonChange}
+                    aria-required="true"
+                    aria-describedby={
+                      disputeReasonError
+                        ? `${DISPUTE_REASON_ERROR_ID} ${DISPUTE_REASON_HINT_ID}`
+                        : DISPUTE_REASON_HINT_ID
+                    }
+                    aria-invalid={disputeReasonError ? 'true' : undefined}
+                    placeholder="Explain why you are opening this dispute…"
+                    className={`w-full resize-y rounded-xl border px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 ${
+                      disputeReasonError
+                        ? 'border-rose-500 bg-white'
+                        : 'border-slate-300 bg-white'
+                    }`}
+                  />
+
+                  {/* Live character counter — aria-live so screen readers
+                      announce the remaining count as the user types. */}
+                  <p
+                    aria-live="polite"
+                    aria-atomic="true"
+                    className={`mt-1 text-xs text-right ${
+                      isOverLimit ? 'text-rose-600 font-semibold' : 'text-slate-500'
+                    }`}
+                  >
+                    {remainingChars} / {DISPUTE_REASON_MAX_LENGTH} characters remaining
+                  </p>
+
+                  {/* Validation error — linked to the textarea via aria-describedby */}
+                  {disputeReasonError && (
+                    <p
+                      id={DISPUTE_REASON_ERROR_ID}
+                      role="alert"
+                      className="mt-1 text-xs font-medium text-rose-700"
+                    >
+                      {disputeReasonError}
+                    </p>
+                  )}
+
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      type="submit"
+                      className={`flex-1 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed ${focusRingClass}`}
+                    >
+                      Confirm Dispute
+                    </button>
+                    <button
+                      type="button"
+                      onClick={closeDisputeForm}
+                      className={`flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:border-slate-400 ${focusRingClass}`}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+          </>
         )}
 
         {actions.includes('View Summary') && (
@@ -362,9 +477,9 @@ const ActionPanel = ({
           Dispute is handled by the inline form above. */}
       <ConfirmDialog
         isOpen={confirmAction !== null}
-        title={confirmAction ? CONFIRM_COPY[confirmAction].title : ''}
-        description={confirmAction ? CONFIRM_COPY[confirmAction].description : ''}
-        confirmLabel={confirmAction ? CONFIRM_COPY[confirmAction].confirmLabel : 'Confirm'}
+        title={confirmAction && confirmAction in CONFIRM_COPY ? CONFIRM_COPY[confirmAction as keyof typeof CONFIRM_COPY].title : ''}
+        description={confirmAction && confirmAction in CONFIRM_COPY ? CONFIRM_COPY[confirmAction as keyof typeof CONFIRM_COPY].description : ''}
+        confirmLabel={confirmAction && confirmAction in CONFIRM_COPY ? CONFIRM_COPY[confirmAction as keyof typeof CONFIRM_COPY].confirmLabel : 'Confirm'}
         cancelLabel="Cancel"
         onConfirm={handleConfirm}
         onCancel={handleCancel}
