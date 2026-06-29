@@ -1,26 +1,11 @@
-export function normalizeCurrencyCode(currency: string): string {
-  return currency.trim().toUpperCase();
-}
-
-export type CurrencyMilestone = {
-  id: string;
-  currency: string;
-};
+import type { Milestone } from '@/components/MilestonesList';
 
 export function findCurrencyMismatches(
   contractCurrency: string,
-  milestones: CurrencyMilestone[],
+  milestones: Milestone[],
 ): string[] {
-  const normalizedContractCurrency = normalizeCurrencyCode(contractCurrency);
-
-  if (!normalizedContractCurrency) {
-    return [];
-  }
-
+  const normalizedContract = contractCurrency.toUpperCase();
   return milestones
-    .filter(
-      (milestone) =>
-        normalizeCurrencyCode(milestone.currency) !== normalizedContractCurrency,
-    )
-    .map((milestone) => milestone.id);
+    .filter((m) => m.currency.toUpperCase() !== normalizedContract)
+    .map((m) => m.id);
 }

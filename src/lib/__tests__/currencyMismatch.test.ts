@@ -1,43 +1,106 @@
-import {
-  findCurrencyMismatches,
-  normalizeCurrencyCode,
-} from '../currencyMismatch';
+import { findCurrencyMismatches } from '../currencyMismatch';
 import type { Milestone } from '@/components/MilestonesList';
 
-const milestones: Milestone[] = [
-  { id: 'design', title: 'Design', status: 'Completed', payout: 500, currency: 'USD' },
-  { id: 'build', title: 'Build', status: 'Pending', payout: 750, currency: 'EUR' },
-  { id: 'launch', title: 'Launch', status: 'Pending', payout: 1250, currency: 'GBP' },
-];
+const mkMilestone = (overrides: Partial<Milestone> & { id: string }): Milestone => ({
+  title: 'Test milestone',
+  status: 'Pending',
+  payout: 100,
+  currency: 'USD',
+  ...overrides,
+});
 
-describe('currencyMismatch', () => {
-  it('normalizes currency codes with trimming and uppercase conversion', () => {
-    expect(normalizeCurrencyCode(' usd ')).toBe('USD');
+describe('findCurrencyMismatches', () => {
+  it('returns empty array when all milestones match contract currency', () => {
+    const milestones: Milestone[] = [
+      mkMilestone({ id: 'ms-1', currency: 'USD' }),
+      mkMilestone({ id: 'ms-2', currency: 'USD' }),
+    ];
+    expect(findCurrencyMismatches('USD', milestones)).toEqual([]);
   });
 
-  it('returns no mismatches when every milestone matches the contract currency', () => {
-    expect(
-      findCurrencyMismatches('USD', [
-        milestones[0],
-        { ...milestones[1], currency: 'USD' },
-      ]),
-    ).toEqual([]);
+  it('returns ids of a single mismatched milestone', () => {
+    const milestones: Milestone[] = [
+      mkMilestone({ id: 'ms-1', currency: 'USD' }),
+      mkMilestone({ id: 'ms-2', currency: 'EUR' }),
+    ];
+    expect(findCurrencyMismatches('USD', milestones)).toEqual(['ms-2']);
   });
 
-  it('returns the mismatched milestone id for a single mismatch', () => {
-    expect(findCurrencyMismatches('USD', milestones.slice(0, 2))).toEqual(['build']);
+  it('returns ids of multiple mismatched milestones with different currencies', () => {
+    const milestones: Milestone[] = [
+      mkMilestone({ id: 'ms-1', currency: 'USD' }),
+      mkMilestone({ id: 'ms-2', currency: 'EUR' }),
+      mkMilestone({ id: 'ms-3', currency: 'GBP' }),
+      mkMilestone({ id: 'ms-4', currency: 'EUR' }),
+    ];
+    const result = findCurrencyMismatches('USD', milestones);
+    expect(result).toContain('ms-2');
+    expect(result).toContain('ms-3');
+    expect(result).toContain('ms-4');
+    expect(result).not.toContain('ms-1');
+    expect(result).toHaveLength(3);
   });
 
-  it('returns every mismatched milestone id across multiple currencies', () => {
-    expect(findCurrencyMismatches('USD', milestones)).toEqual(['build', 'launch']);
+  it('treats currency comparison case-insensitively', () => {
+    const milestones: Milestone[] = [
+      mkMilestone({ id: 'ms-1', currency: 'usd' }),
+      mkMilestone({ id: 'ms-2', currency: 'Usd' }),
+      mkMilestone({ id: 'ms-3', currency: 'USD' }),
+    ];
+    expect(findCurrencyMismatches('USD', milestones)).toEqual([]);
   });
 
-  it('compares milestone and contract currencies case-insensitively', () => {
-    expect(
-      findCurrencyMismatches('usd', [
-        { ...milestones[0], currency: 'USD' },
-        { ...milestones[1], currency: 'uSd' },
-      ]),
-    ).toEqual([]);
+  it('detects mismatch when contract currency casing differs from milestone casing', () => {
+    const milestones: Milestone[] = [
+      mkMilestone({ id: 'ms-1', currency: 'eur' }),
+    ];
+    expect(findCurrencyMismatches('EUR', milestones)).toEqual([]);
+  });
+
+  it('case-insensitive detection: uppercase milestone vs lowercase contract', () => {
+    const milestones: Milestone[] = [
+      mkMilestone({ id: 'ms-1', currency: 'EUR' }),
+    ];
+    expect(findCurrencyMismatches('eur', milestones)).toEqual([]);
+  });
+
+  it('returns empty array for empty milestones', () => {
+    expect(findCurrencyMismatches('USD', [])).toEqual([]);
+  });
+
+  it('returns empty array when there are no milestones and contract currency is empty string', () => {
+    expect(findCurrencyMismatches('', [])).toEqual([]);
+  });
+
+  it('handles milestone with empty currency string', () => {
+    const milestones: Milestone[] = [
+      mkMilestone({ id: 'ms-1', currency: '' }),
+    ];
+    expect(findCurrencyMismatches('USD', milestones)).toEqual(['ms-1']);
+  });
+
+  it('handles contract currency with empty string', () => {
+    const milestones: Milestone[] = [
+      mkMilestone({ id: 'ms-1', currency: 'USD' }),
+    ];
+    expect(findCurrencyMismatches('', milestones)).toEqual(['ms-1']);
+  });
+
+  it('preserves milestone identity when ids are not sequential', () => {
+    const milestones: Milestone[] = [
+      mkMilestone({ id: 'abc', currency: 'USD' }),
+      mkMilestone({ id: 'xyz-123', currency: 'EUR' }),
+    ];
+    expect(findCurrencyMismatches('USD', milestones)).toEqual(['xyz-123']);
+  });
+
+  it('detects multiple distinct mismatched currencies', () => {
+    const milestones: Milestone[] = [
+      mkMilestone({ id: 'ms-1', currency: 'EUR' }),
+      mkMilestone({ id: 'ms-2', currency: 'GBP' }),
+      mkMilestone({ id: 'ms-3', currency: 'XLM' }),
+    ];
+    const result = findCurrencyMismatches('USD', milestones);
+    expect(result).toEqual(['ms-1', 'ms-2', 'ms-3']);
   });
 });

@@ -225,10 +225,7 @@ const ContractDetailPageContent = ({ id }: { id: string }) => {
               {isLoading ? (
                 <MilestonesListSkeleton />
               ) : contractData ? (
-                <MilestonesList
-                  milestones={contractData.milestones}
-                  contractCurrency={contractData.currency}
-                />
+                <MilestonesList milestones={contractData.milestones} contractCurrency={contractData.currency} />
               ) : null}
             </SafeBoundary>
           </div>

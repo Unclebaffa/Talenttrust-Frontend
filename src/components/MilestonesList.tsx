@@ -1,7 +1,6 @@
 import StatusBadge, { StatusType, statusColorMap, statusIconMap } from './StatusBadge';
 import { usePreferences } from '@/lib/preferences';
 import { findCurrencyMismatches } from '@/lib/currencyMismatch';
-import { milestoneStatusTally } from '@/lib/milestoneStatusTally';
 
 export type Milestone = {
   id: string;
@@ -34,8 +33,6 @@ const MilestonesList = ({ milestones, contractCurrency }: MilestonesListProps) =
 
   const shouldWarn = mismatchedIds.length > 0;
 
-  const tallies = milestoneStatusTally(milestones);
-
   return (
     <section aria-labelledby="milestones-title" className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-center justify-between gap-4">
@@ -44,28 +41,6 @@ const MilestonesList = ({ milestones, contractCurrency }: MilestonesListProps) =
         </h2>
         <span id="milestones-count" className="text-sm text-slate-500">{milestones.length} total</span>
       </div>
-
-      {tallies.length > 0 && (
-        <div
-          role="list"
-          aria-label="Milestone status summary"
-          className="mt-4 flex flex-wrap gap-2"
-        >
-          {tallies.map(({ status, count }) => (
-            <span
-              key={status}
-              role="listitem"
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${statusColorMap[status]}`}
-            >
-              <span aria-hidden="true">{statusIconMap[status]}</span>
-              {status}
-              <span className="ml-0.5 rounded-full bg-white/40 px-1.5 py-0.5 text-[10px] font-bold leading-none">
-                {count}
-              </span>
-            </span>
-          ))}
-        </div>
-      )}
 
       {shouldWarn && (
         <div
