@@ -495,13 +495,14 @@ describe('write failure resilience', () => {
     expect(mockReporter.mock.calls[0][1]).toMatch(/\[repository\]/);
   });
 
-  it('returns false when upsertContract cannot persist the write', () => {
-    jest.spyOn(console, 'warn').mockImplementation(() => {});
+  it('returns false and reports the error when upsertContract fails to persist the write', () => {
     jest.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
       throw new DOMException('QuotaExceededError');
     });
 
     expect(upsertContract(contractA)).toBe(false);
+    expect(mockReporter).toHaveBeenCalledTimes(1);
+    expect(mockReporter.mock.calls[0][1]).toMatch(/\[repository\]/);
   });
 });
 
