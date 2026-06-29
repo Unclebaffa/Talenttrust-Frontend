@@ -138,9 +138,9 @@ export default function ReputationProfile({
 
         {hasReputation && (
           <div className="mt-6 border-t border-slate-200 pt-6">
-            <h3 className="text-sm font-semibold text-slate-900" id="reputation-legend-title">
+            <h2 className="text-sm font-semibold text-slate-900" id="reputation-legend-title">
               Reputation Level Legend
-            </h3>
+            </h2>
             <ul
               id="reputation-legend"
               aria-labelledby="reputation-legend-title"
